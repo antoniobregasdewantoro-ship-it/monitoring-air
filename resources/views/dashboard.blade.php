@@ -1,387 +1,1076 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container py-4">
-    <h1 class="mb-4 fw-bold text-primary">📊 Dashboard Monitoring Kualitas Air</h1>
+@push('styles')
+<style>
+/* Background & Font Utama */
+body {
+    background-color: #e6f0ed !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-    <!-- Notifikasi -->
-    <div id="alertContainer"></div>
+/* Kartu Utama */
+.card-custom {
+    background: #ffffff;
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
 
-    <!-- Tips Card -->
+/* Status Badge */
+.badge-normal {
+    background-color: #dcfce7;
+    color: #15803d;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+
+.badge-warning-custom {
+    background-color: #fef3c7;
+    color: #b45309;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+
+.badge-danger-custom {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+
+/* --- KARTU CUACA TERBARU --- */
+.card-weather-target {
+    background: #85caf5;
+    border-radius: 28px;
+    border: none;
+    padding: 1.25rem !important;
+    color: #0c2d2a;
+}
+
+.weather-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+.weather-border-x {
+    border-left: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Container scroll horizontal */
+.hourly-scroll-container {
+    display: flex !important;
+    gap: 8px;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 6px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hourly-scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* Item per jam */
+.hourly-pill {
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 16px;
+    padding: 8px 10px;
+    text-align: center;
+    flex: 0 0 62px !important;
+    width: 62px;
+}
+
+/* Box AI Smart Recommendation */
+.ai-box-notice {
+    background-color: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+}
+
+/* Background Icon Sensor */
+.icon-bg-blue {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+
+.icon-bg-green {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.icon-bg-cyan {
+    background-color: #e0f7fa;
+    color: #00acc1;
+}
+
+.icon-bg-purple {
+    background-color: #f3e8ff;
+    color: #9333ea;
+}
+
+/* Tombol Filter & Export Monitoring Data Sesuai Desain */
+.btn-chart-filter {
+    background-color: #ffffff;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    padding: 6px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.btn-chart-filter.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.btn-chart-export {
+    background-color: #ffffff;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Header Statistik AVG/MIN/MAX di dalam Grafik */
+.stat-header-label {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.stat-header-val {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+}
+</style>
+@endpush
+
+<div class="container-fluid px-4 pt-1 pb-4">
+    <!-- Notifikasi Alert Container -->
+    <div id="alertContainer" class="mb-3"></div>
+
+    <!-- Header Page -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="text-uppercase fw-bold text-primary small"
+                style="letter-spacing: 0.5px; font-size: 0.75rem;">WATER QUALITY MONITORING</span>
+            <h2 class="fw-bold m-0 text-dark" style="font-size: 1.8rem;">Dashboard Monitoring</h2>
+            <p class="text-secondary small m-0">Pantau kondisi kualitas air secara real-time.</p>
+        </div>
+        <div class="d-flex align-items-center bg-white px-3 py-2 rounded-pill shadow-sm">
+            <span id="system-status-dot" class="badge bg-success rounded-circle p-1 me-2"
+                style="width: 8px; height: 8px;"></span>
+            <span id="system-status-text" class="fw-bold small me-2 text-dark">System Online</span>
+            <span class="text-muted small" style="font-size: 0.8rem;">Last updated: <span
+                    id="last-updated-time">--:--:--</span></span>
+        </div>
+    </div>
+
+    <!-- ROW 1: Top Cards -->
+    <div class="row g-3 mb-4 align-items-stretch">
+        <!-- 1. Skor Kualitas Air & Mini Grid -->
+        <div class="col-lg-3">
+            <div id="card-quality"
+                class="card h-100 p-3 position-relative overflow-hidden shadow-sm d-flex flex-column justify-content-between"
+                style="border-radius: 20px; background-color: #eef7f9; border: 1px solid #ccece6;">
+                <div class="position-absolute"
+                    style="width: 200px; height: 200px; background: rgba(14, 165, 233, 0.06); border-radius: 50%; top: -60px; right: -60px; z-index: 0;">
+                </div>
+
+                <div class="position-relative z-1 d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column gap-1">
+                        <span class="fw-bold"
+                            style="font-size: 0.75rem; letter-spacing: 0.5px; color: #52708f;">KUALITAS AIR</span>
+                        <div class="d-inline-flex align-items-center bg-white rounded-pill px-2.5 py-0.5 shadow-sm"
+                            style="border: 1px solid #a7f3d0; width: fit-content;">
+                            <i id="quality-dot" class="fas fa-circle me-1.5"
+                                style="font-size: 7px; color: #10b981;"></i>
+                            <span id="quality-label" class="fw-bold"
+                                style="color: #10b981; font-size: 0.75rem;">Normal</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center shadow-sm"
+                        style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #1e40af 0%, #06b6d4 100%);">
+                        <i class="fas fa-droplet text-white"></i>
+                    </div>
+                </div>
+
+                <div class="text-center my-2 position-relative z-1">
+                    <div class="d-inline-flex align-items-center justify-content-center position-relative"
+                        style="width: 145px; height: 145px;">
+                        <canvas id="scoreGauge"></canvas>
+                        <div class="position-absolute text-center mt-1">
+                            <h2 id="quality-value" class="fw-bolder mb-0 text-dark"
+                                style="font-size: 2.3rem; line-height: 1;">--</h2>
+                            <small class="text-secondary fw-medium" style="font-size: 0.75rem;">/ 100</small>
+                            <span id="quality-badge-text" class="fw-bold d-block mt-0.5"
+                                style="color: #1d4ed8; font-size: 0.85rem; letter-spacing: 0.5px;">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="quality-summary-text" class="text-center mb-2 px-1 position-relative z-1"
+                    style="font-size: 0.8rem; color: #64748b; line-height: 1.3;">
+                    Memuat status kualitas air...
+                </p>
+
+                <div class="row g-2 text-center position-relative z-1">
+                    <div class="col-6">
+                        <div class="bg-white py-1.5 px-1 d-flex flex-column justify-content-center"
+                            style="border: 1px solid #ccece6; border-radius: 10px; min-height: 52px;">
+                            <small style="font-size: 0.7rem; color: #64748b;">pH</small>
+                            <strong id="mini-ph-val" class="fw-bold"
+                                style="color: #1e3a8a; font-size: 0.95rem;">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white py-1.5 px-1 d-flex flex-column justify-content-center"
+                            style="border: 1px solid #ccece6; border-radius: 10px; min-height: 52px;">
+                            <small style="font-size: 0.7rem; color: #64748b;">Suhu</small>
+                            <strong id="mini-suhu-val" class="fw-bold"
+                                style="color: #10b981; font-size: 0.95rem;">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white py-1.5 px-1 d-flex flex-column justify-content-center"
+                            style="border: 1px solid #ccece6; border-radius: 10px; min-height: 52px;">
+                            <small style="font-size: 0.7rem; color: #64748b;">TDS</small>
+                            <strong id="mini-tds-val" class="fw-bold"
+                                style="color: #06b6d4; font-size: 0.95rem;">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white py-1.5 px-1 d-flex flex-column justify-content-center"
+                            style="border: 1px solid #ccece6; border-radius: 10px; min-height: 52px;">
+                            <small style="font-size: 0.7rem; color: #64748b;">NTU</small>
+                            <strong id="mini-kekeruhan-val" class="fw-bold"
+                                style="color: #8b5cf6; font-size: 0.95rem;">--</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather BMKG Card Dinamis -->
+        <div class="col-lg-3">
+            <div class="card card-weather-target h-100 d-flex flex-column justify-content-between shadow-sm">
+                <!-- Header: Lokasi & Hari -->
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="fw-bold text-uppercase d-flex align-items-center gap-1"
+                        style="font-size: 0.72rem; color: #3d6875;">
+                        <i class="fas fa-location-dot text-danger"></i> {{ $cuaca['lokasi'] }}
+                    </div>
+                    <div class="text-end" style="line-height: 1.1;">
+                        <div class="fw-bold" style="font-size: 0.95rem; color: #0c2d2a;">Weather</div>
+                        <span style="font-size: 0.72rem; color: #417280;">{{ $cuaca['hari'] }}</span>
+                    </div>
+                </div>
+
+                <!-- Suhu Utama & Kondisi -->
+                <div class="d-flex align-items-center gap-3 my-2">
+                    <i class="fas fa-cloud-sun text-warning"
+                        style="font-size: 3.2rem; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.08));"></i>
+                    <div>
+                        <div class="fw-bold"
+                            style="font-size: 2.8rem; line-height: 1; color: #0c2d2a; letter-spacing: -1px;">
+                            {{ $cuaca['suhu'] }}°C</div>
+                        <div style="font-size: 0.85rem; color: #417280; font-weight: 500;">{{ $cuaca['kondisi'] }}</div>
+                    </div>
+                </div>
+
+                <!-- Middle Stats: Kelembaban, Waktu, Angin -->
+                <div class="row text-center py-2 weather-divider my-1">
+                    <div class="col-4 px-1">
+                        <div class="fw-bold" style="font-size: 1.05rem; color: #0c2d2a;">{{ $cuaca['kelembaban'] }}%
+                        </div>
+                        <div style="font-size: 0.65rem; color: #417280;">Kelembaban</div>
+                    </div>
+                    <div class="col-4 px-1 weather-border-x d-flex align-items-center justify-content-center">
+                        <div class="fw-bold" style="font-size: 0.9rem; color: #ef4444;">{{ $cuaca['waktu'] }}</div>
+                    </div>
+                    <div class="col-4 px-1">
+                        <div class="fw-bold" style="font-size: 1.05rem; color: #0c2d2a;">{{ $cuaca['angin'] }}</div>
+                        <div style="font-size: 0.65rem; color: #417280;">Angin · {{ $cuaca['arah_angin'] }}</div>
+                    </div>
+                </div>
+
+                <!-- Hourly Forecast (Horizontal Scroll) -->
+                <div class="hourly-scroll-container pt-1">
+                    @foreach($cuaca['hourly'] as $item)
+                    <div class="hourly-pill">
+                        <div style="font-size: 0.68rem; color: #417280; font-weight: 600;">{{ $item['jam'] }}</div>
+                        <i class="{{ $item['icon'] }} my-1 d-block" style="font-size: 0.85rem;"></i>
+                        <div class="fw-bold" style="font-size: 0.85rem; color: #0c2d2a;">{{ $item['suhu'] }}</div>
+                        <div style="font-size: 0.6rem; color: #417280;">{{ $item['angin'] }}</div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Daftar Kartu Sensor Kanan -->
+        <div class="col-lg-6">
+            <div class="d-flex flex-column justify-content-between h-100 gap-2">
+                <!-- pH -->
+                <div id="card-ph"
+                    class="card card-custom px-3 py-2.5 d-flex flex-row justify-content-between align-items-center h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 icon-bg-blue d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px;">
+                            <i class="fas fa-droplet"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">pH</small>
+                            <div class="d-flex align-items-baseline gap-1">
+                                <h5 id="ph-value" class="fw-bold m-0 text-dark">--</h5>
+                                <span class="text-muted small" style="font-size: 0.75rem;">pH</span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Tingkat keasaman air</small>
+                        </div>
+                    </div>
+                    <span id="ph-badge" class="badge-normal"><i class="fas fa-circle me-1" style="font-size: 5px;"></i>
+                        Normal</span>
+                </div>
+
+                <!-- Suhu -->
+                <div id="card-suhu"
+                    class="card card-custom px-3 py-2.5 d-flex flex-row justify-content-between align-items-center h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 icon-bg-green d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px;">
+                            <i class="fas fa-temperature-half"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Suhu</small>
+                            <div class="d-flex align-items-baseline gap-1">
+                                <h5 id="suhu-value" class="fw-bold m-0 text-dark">--</h5>
+                                <span class="text-muted small" style="font-size: 0.75rem;">°C</span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Temperatur air tambak</small>
+                        </div>
+                    </div>
+                    <span id="suhu-badge" class="badge-normal"><i class="fas fa-circle me-1"
+                            style="font-size: 5px;"></i> Normal</span>
+                </div>
+
+                <!-- TDS -->
+                <div id="card-tds"
+                    class="card card-custom px-3 py-2.5 d-flex flex-row justify-content-between align-items-center h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 icon-bg-cyan d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px;">
+                            <i class="fas fa-circle-dot"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">TDS</small>
+                            <div class="d-flex align-items-baseline gap-1">
+                                <h5 id="tds-value" class="fw-bold m-0 text-dark">--</h5>
+                                <span class="text-muted small" style="font-size: 0.75rem;">ppm</span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Total padatan terlarut</small>
+                        </div>
+                    </div>
+                    <span id="tds-badge" class="badge-normal"><i class="fas fa-circle me-1" style="font-size: 5px;"></i>
+                        Normal</span>
+                </div>
+
+                <!-- Kekeruhan -->
+                <div id="card-kekeruhan"
+                    class="card card-custom px-3 py-2.5 d-flex flex-row justify-content-between align-items-center h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 icon-bg-purple d-flex align-items-center justify-content-center"
+                            style="width: 42px; height: 42px;">
+                            <i class="fas fa-water"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Kekeruhan</small>
+                            <div class="d-flex align-items-baseline gap-1">
+                                <h5 id="kekeruhan-value" class="fw-bold m-0 text-dark">--</h5>
+                                <span class="text-muted small" style="font-size: 0.75rem;">NTU</span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Tingkat kekeruhan air</small>
+                        </div>
+                    </div>
+                    <span id="kekeruhan-badge" class="badge-normal"><i class="fas fa-circle me-1"
+                            style="font-size: 5px;"></i> Normal</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 2: AI SMART RECOMMENDATION -->
     <div class="row mb-4">
-        <div class="col">
-            <div id="tips-card" class="card shadow-sm border-info rounded-4">
-                <div class="card-header bg-info text-white fw-semibold rounded-top-4">💡 Tips Budidaya Udang Vaname</div>
-                <div class="card-body">
-                    <h5 id="tips-title" class="card-title fw-bold">Semua parameter dalam kondisi aman! 🎉</h5>
-                    <p id="tips-content" class="card-text">Pastikan Anda tetap memantau kondisi air secara berkala.</p>
+        <div class="col-12">
+            <div id="tips-card" class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center text-white shadow-sm"
+                            style="width: 42px; height: 42px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); flex-shrink: 0;">
+                            <i class="fas fa-robot fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">AI Smart Recommendation</h5>
+                            <small class="text-muted" style="font-size: 0.78rem;">Analisis pintar kualitas air &amp;
+                                prediksi tindakan</small>
+                        </div>
+                    </div>
+                    <span class="badge rounded-pill px-3 py-2 font-normal d-flex align-items-center gap-2"
+                        style="background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 0.75rem;">
+                        <i class="fas fa-circle-info text-secondary"></i> Setup Required
+                    </span>
+                </div>
 
-                    <!-- Tambahan untuk status kualitas air -->
-                    <p id="quality-status" class="card-text fw-semibold text-primary mt-2"></p>
-
-                    <!-- Tambahan untuk tips berdasarkan kualitas air -->
-                    <ul id="quality-tips" class="card-text text-secondary mt-2 ps-3"></ul>
+                <div class="ai-box-notice p-3 text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-1.5">
+                        <i class="fas fa-triangle-exclamation text-warning"></i>
+                        <strong class="text-dark small">Anda belum menyetting AI</strong>
+                    </div>
+                    <p class="text-secondary small mb-0 mx-auto" style="max-width: 900px; line-height: 1.5;">
+                        Modul kecerdasan buatan belum terkonfigurasi pada server. Silakan hubungi administrator atau
+                        lengkapi API key model AI Anda untuk mengaktifkan rekomendasi otomatis dan analisis tindakan
+                        presisi.
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-
-    <!-- Nilai Realtime Cards -->
-    <div class="row row-cols-2 row-cols-md-4 g-3">
-        <div class="col">
-            <div id="card-ph" class="card border-primary shadow-sm rounded-4 h-100">
-                <div class="card-header bg-primary text-white fw-semibold">pH</div>
-                <div class="card-body text-primary text-center">
-                    <h5 id="ph-value" class="card-title display-6">-</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div id="card-suhu" class="card border-success shadow-sm rounded-4 h-100">
-                <div class="card-header bg-success text-white fw-semibold">Suhu (°C)</div>
-                <div class="card-body text-success text-center">
-                    <h5 id="suhu-value" class="card-title display-6">-</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div id="card-kekeruhan" class="card border-warning shadow-sm rounded-4 h-100">
-                <div class="card-header bg-warning text-dark fw-semibold">Kekeruhan (NTU)</div>
-                <div class="card-body text-warning text-center">
-                    <h5 id="kekeruhan-value" class="card-title display-6">-</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div id="card-quality" class="card border-info shadow-sm rounded-4 h-100">
-                <div class="card-header bg-info text-white fw-semibold">Kualitas Air (%)</div>
-                <div class="card-body text-info text-center">
-                    <h5 id="quality-value" class="card-title display-6">-</h5>
-                </div>
-            </div>
+    <!-- ROW 3: MONITORING DATA GRAFIK (SESUAI PRESISI GAMBAR) -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold m-0 text-dark" style="font-size: 1.3rem;">Monitoring Data</h4>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btn-today" onclick="filterChartTime('today')"
+                class="btn-chart-filter active">Today</button>
+            <button type="button" id="btn-7days" onclick="filterChartTime('7days')" class="btn-chart-filter">7
+                Days</button>
+            <button type="button" id="btn-30days" onclick="filterChartTime('30days')" class="btn-chart-filter">30
+                Days</button>
+            <button onclick="exportChartData()" class="btn-chart-export shadow-sm ms-2">
+                <i class="fas fa-download text-secondary"></i> Export Data
+            </button>
         </div>
     </div>
 
-
-
-
-    <!-- Grafik Parameter -->
-    <div class="row mt-5 g-4">
+    <div class="row g-3">
+        <!-- 1. Grafik pH -->
         <div class="col-md-6">
-            <div class="card shadow-sm rounded-4">
-                <div class="card-header text-black fw-semibold bg-light">📈 Grafik pH</div>
-                <div class="card-body">
-                    <canvas id="phChart" height="200"></canvas>
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Grafik pH</h5>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Perubahan tingkat pH dari waktu ke
+                            waktu</small>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <div class="stat-box">
+                            <div class="stat-header-label">AVG</div>
+                            <div id="ph-avg" class="stat-header-val" style="color: #2563eb;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MIN</div>
+                            <div id="ph-min" class="stat-header-val" style="color: #2563eb;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MAX</div>
+                            <div id="ph-max" class="stat-header-val" style="color: #2563eb;">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 220px; position: relative;">
+                    <canvas id="phChart"></canvas>
                 </div>
             </div>
         </div>
+
+        <!-- 2. Grafik Suhu -->
         <div class="col-md-6">
-            <div class="card shadow-sm rounded-4">
-                <div class="card-header text-black fw-semibold bg-light">📈 Grafik Suhu</div>
-                <div class="card-body">
-                    <canvas id="suhuChart" height="200"></canvas>
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Grafik Suhu</h5>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Perubahan suhu air</small>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <div class="stat-box">
+                            <div class="stat-header-label">AVG</div>
+                            <div id="suhu-avg" class="stat-header-val" style="color: #10b981;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MIN</div>
+                            <div id="suhu-min" class="stat-header-val" style="color: #10b981;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MAX</div>
+                            <div id="suhu-max" class="stat-header-val" style="color: #10b981;">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 220px; position: relative;">
+                    <canvas id="suhuChart"></canvas>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mt-4">
+        <!-- 3. Grafik TDS -->
         <div class="col-md-6">
-            <div class="card shadow-sm rounded-4">
-                <div class="card-header text-black fw-semibold bg-light">📈 Grafik Kekeruhan</div>
-                <div class="card-body">
-                    <canvas id="kekeruhanChart" height="200"></canvas>
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Grafik TDS</h5>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Perubahan total padatan terlarut dalam
+                            air</small>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <div class="stat-box">
+                            <div class="stat-header-label">AVG</div>
+                            <div id="tds-avg" class="stat-header-val" style="color: #06b6d4;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MIN</div>
+                            <div id="tds-min" class="stat-header-val" style="color: #06b6d4;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MAX</div>
+                            <div id="tds-max" class="stat-header-val" style="color: #06b6d4;">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 220px; position: relative;">
+                    <canvas id="tdsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Grafik Kekeruhan -->
+        <div class="col-md-6">
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Grafik Kekeruhan</h5>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Perubahan tingkat kekeruhan
+                            air</small>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <div class="stat-box">
+                            <div class="stat-header-label">AVG</div>
+                            <div id="kekeruhan-avg" class="stat-header-val" style="color: #8b5cf6;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MIN</div>
+                            <div id="kekeruhan-min" class="stat-header-val" style="color: #8b5cf6;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-header-label">MAX</div>
+                            <div id="kekeruhan-max" class="stat-header-val" style="color: #8b5cf6;">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 220px; position: relative;">
+                    <canvas id="kekeruhanChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Script -->
+<!-- SCRIPT JS INTERAKTIF REAL-TIME -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    let sensorData = @json($sensorData);
-    let latestQuality = null; 
-    const getLabels = data => data.map(d => new Date(d.created_at).toLocaleTimeString());
-    const getDataArray = (data, key) => data.map(d => parseFloat(d[key]));
+let sensorData = @json($sensorData ?? []);
+let activeTimeRange = 'today';
 
-    let charts = {
-        ph: null,
-        suhu: null,
-        kekeruhan: null
+let charts = {
+    ph: null,
+    suhu: null,
+    tds: null,
+    kekeruhan: null
+};
+let scoreChart = null;
+
+// Fallback dummy data jika DB kosong / cuma 1 baris agar desain grafik tetap ter-render rapi
+const dummyLabels = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const dummyPH = [6.9, 7.0, 7.3, 7.2, 7.4, 7.5, 7.3, 7.2, 7.4, 7.0, 7.2, 7.3];
+const dummySuhu = [26.8, 27.2, 27.8, 28.5, 29.2, 29.8, 30.1, 30.5, 30.0, 29.2, 28.8, 28.2];
+const dummyTDS = [210, 215, 220, 225, 230, 235, 245, 255, 250, 245, 240, 235];
+const dummyKek = [8.0, 9.5, 12.0, 14.5, 15.0, 16.0, 18.0, 17.5, 15.0, 13.0, 12.0, 11.0];
+
+function formatTimeLabel(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getLabels(data) {
+    if (!data || data.length < 2) return dummyLabels;
+    return data.map(d => formatTimeLabel(d.created_at));
+}
+
+function getDataArray(data, key, fallbackData) {
+    if (data && data.length >= 2) {
+        return data.map(d => parseFloat(d[key]) || 0);
+    }
+    return fallbackData; // Gunakan fallback dummy jika data tidak cukup untuk membuat kurva
+}
+
+function calculateGaugeScore(ph, suhu, ntu) {
+    let score = 100;
+    if (ph < 7.5 || ph > 8.5) score -= 25;
+    if (suhu < 28 || suhu > 32) score -= 25;
+    if (ntu > 30) score -= 25;
+    return Math.max(10, Math.min(100, score));
+}
+
+// Fungsi Update Statistik yang disempurnakan (bisa merender HTML tag di satuan warna)
+function updateChartStats(key, arrData, unit = '') {
+    if (!arrData || !arrData.length) return;
+    
+    // Filter data numerik yang valid
+    const validNums = arrData.filter(v => v !== null && !isNaN(v));
+    if (!validNums.length) return;
+
+    // Kalkulasi nilai
+    const min = Math.min(...validNums).toFixed(1);
+    const max = Math.max(...validNums).toFixed(1);
+    const avg = (validNums.reduce((a, b) => a + b, 0) / validNums.length).toFixed(1);
+
+    // Pemetaan warna senada berdasarkan parameter (key)
+    const colorMap = {
+        'ph': '#2563eb',       // Biru
+        'suhu': '#10b981',     // Hijau
+        'tds': '#06b6d4',      // Cyan
+        'kekeruhan': '#8b5cf6' // Ungu
     };
+    const themeColor = colorMap[key] || '#64748b';
 
-    function createChart(id, label, data, borderColor, bgColor) {
-        const ctx = document.getElementById(id).getContext('2d');
-        return new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: getLabels(sensorData),
-                datasets: [{
-                    label,
-                    data,
-                    borderColor,
-                    backgroundColor: bgColor,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: { enabled: true }
+    // Format HTML untuk mewarnai teks satuan (unit)
+    const unitHtml = unit ? ` <span style="color: ${themeColor}; font-weight: 600; font-size: 0.75rem;">${unit}</span>` : '';
+
+    // Ambil elemen DOM
+    const minEl = document.getElementById(`${key}-min`);
+    const maxEl = document.getElementById(`${key}-max`);
+    const avgEl = document.getElementById(`${key}-avg`);
+
+    // Terapkan ke DOM menggunakan innerHTML
+    if (minEl) minEl.innerHTML = `${min}${unitHtml}`;
+    if (maxEl) maxEl.innerHTML = `${max}${unitHtml}`;
+    if (avgEl) avgEl.innerHTML = `${avg}${unitHtml}`;
+}
+
+function updateSensorBadgesAndValues(latest) {
+    if (!latest) return;
+
+    const phVal = parseFloat(latest.ph) || 0;
+    document.getElementById('ph-value').textContent = phVal.toFixed(1);
+    document.getElementById('mini-ph-val').textContent = phVal.toFixed(1);
+    updateBadgeUI('ph-badge', phVal >= 7.5 && phVal <= 8.5, 'Normal', 'Abnormal');
+
+    const suhuVal = parseFloat(latest.suhu) || 0;
+    document.getElementById('suhu-value').textContent = suhuVal.toFixed(1);
+    document.getElementById('mini-suhu-val').textContent = `${suhuVal.toFixed(1)}°`;
+    updateBadgeUI('suhu-badge', suhuVal >= 28 && suhuVal <= 32, 'Normal', 'Ekstrem');
+
+    const tdsVal = parseFloat(latest.tds) || 0;
+    document.getElementById('tds-value').textContent = Math.round(tdsVal);
+    document.getElementById('mini-tds-val').textContent = Math.round(tdsVal);
+    updateBadgeUI('tds-badge', tdsVal <= 1000, 'Normal', 'Tinggi');
+
+    const ntuVal = parseFloat(latest.kekeruhan) || 0;
+    document.getElementById('kekeruhan-value').textContent = ntuVal.toFixed(1);
+    document.getElementById('mini-kekeruhan-val').textContent = ntuVal.toFixed(1);
+    updateBadgeUI('kekeruhan-badge', ntuVal <= 30, 'Normal', 'Keruh');
+
+    const qualityScore = latest.kualitas !== null && latest.kualitas !== undefined ?
+        Math.round(parseFloat(latest.kualitas)) :
+        calculateGaugeScore(phVal, suhuVal, ntuVal);
+
+    document.getElementById('quality-value').textContent = qualityScore;
+
+    let qualityText = 'Normal';
+    let qualityColor = '#10b981';
+    let summary = 'Semua parameter dalam kondisi aman.';
+
+    if (qualityScore < 50) {
+        qualityText = 'Buruk';
+        qualityColor = '#ef4444';
+        summary = 'Kualitas air menurun, perlu tindakan pengondisian.';
+    } else if (qualityScore < 75) {
+        qualityText = 'Sedang';
+        qualityColor = '#f59e0b';
+        summary = 'Kualitas air cukup stabil, pantau perubahan pH & suhu.';
+    }
+
+    document.getElementById('quality-label').textContent = qualityText;
+    document.getElementById('quality-label').style.color = qualityColor;
+    document.getElementById('quality-dot').style.color = qualityColor;
+    document.getElementById('quality-badge-text').textContent = qualityText.toUpperCase();
+    document.getElementById('quality-badge-text').style.color = qualityColor;
+    document.getElementById('quality-summary-text').textContent = summary;
+
+    if (scoreChart) {
+        scoreChart.data.datasets[0].data = [qualityScore, 100 - qualityScore];
+        scoreChart.data.datasets[0].backgroundColor[0] = qualityColor;
+        scoreChart.update();
+    }
+}
+
+function updateBadgeUI(elementId, isNormal, textNormal, textWarning) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (isNormal) {
+        el.className = 'badge-normal';
+        el.innerHTML = `<i class="fas fa-circle me-1" style="font-size: 5px;"></i> ${textNormal}`;
+    } else {
+        el.className = 'badge-danger-custom';
+        el.innerHTML = `<i class="fas fa-circle me-1" style="font-size: 5px;"></i> ${textWarning}`;
+    }
+}
+
+function initScoreGauge() {
+    const canvas = document.getElementById('scoreGauge');
+    if (!canvas) return;
+    const ctxGauge = canvas.getContext('2d');
+    scoreChart = new Chart(ctxGauge, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [0, 100],
+                backgroundColor: ['#10b981', '#e2e8f0'],
+                borderWidth: 0,
+                borderRadius: 20
+            }]
+        },
+        options: {
+            cutout: '80%',
+            rotation: 210,
+            circumference: 360,
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                tooltip: {
+                    enabled: false
                 },
-                scales: {
-                    y: {
-                        beginAtZero: false
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// Plugin kustom untuk menggambar garis putus-putus vertikal (crosshair)
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw: chart => {
+        if (chart.tooltip?._active?.length) {
+            const x = chart.tooltip._active[0].element.x;
+            const yAxis = chart.scales.y;
+            const ctx = chart.ctx;
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x, yAxis.top);
+            ctx.lineTo(x, yAxis.bottom);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)'; // Warna abu-abu (slate-300) transparan
+            ctx.setLineDash([4, 4]); // Garis putus-putus
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+};
+
+function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold = null, thresholdColor = '#cbd5e1') {
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    let gradient = ctx.createLinearGradient(0, 0, 0, 220);
+    gradient.addColorStop(0, bgColor);
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    const datasets = [{
+        label: label,
+        data: dataPoints,
+        borderColor: borderColor,
+        backgroundColor: gradient,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4, // Membuat kurva menjadi halus
+        pointRadius: 0, // Sembunyikan titik saat diam
+        pointHoverRadius: 6, // Munculkan titik saat di-hover/disentuh
+        pointHoverBackgroundColor: borderColor, // Isi titik dengan warna utama
+        pointHoverBorderColor: '#ffffff', // Garis pinggir titik warna putih
+        pointHoverBorderWidth: 2
+    }];
+
+    if (threshold !== null) {
+        datasets.push({
+            label: 'Ambang Batas',
+            data: Array(dataPoints.length).fill(threshold),
+            borderColor: thresholdColor,
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0
+        });
+    }
+
+    const chronologicalData = [...sensorData].reverse();
+
+    // Deteksi satuan berdasarkan nama label
+    let unit = '';
+    if (label.includes('pH')) unit = 'pH';
+    else if (label.includes('Suhu')) unit = '°C';
+    else if (label.includes('TDS')) unit = 'ppm';
+    else if (label.includes('Kekeruhan')) unit = 'NTU';
+
+    return new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: getLabels(chronologicalData),
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: { top: 15, bottom: 5 }
+            },
+            // PENTING: Pengaturan interaksi agar responsif di HP (bisa sentuh vertikal di mana saja)
+            interaction: {
+                mode: 'index',
+                intersect: false, 
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                // Kustomisasi Kotak Hover (Tooltip) Sesuai Gambar
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#64748b',
+                    titleFont: { size: 12, weight: 'normal', family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+                    bodyColor: borderColor,
+                    bodyFont: { size: 16, weight: 'bold', family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1.5,
+                    padding: { top: 10, bottom: 10, left: 14, right: 14 },
+                    cornerRadius: 8,
+                    displayColors: false, // Sembunyikan ikon kotak warna di dalam tooltip
+                    callbacks: {
+                        title: function(context) {
+                            // Tampilkan Waktu di bagian atas tooltip
+                            return context[0].label; 
+                        },
+                        label: function(context) {
+                            if (context.dataset.label === 'Ambang Batas') {
+                                return `Batas: ${context.parsed.y} ${unit}`;
+                            }
+                            // Tampilkan Nilai dan Satuan (Misal: 7.2 pH)
+                            return `${context.parsed.y} ${unit}`;
+                        }
                     }
                 }
-            }
-        });
-    }
-
-    function initCharts() {
-        charts.ph = createChart('phChart', 'pH', getDataArray(sensorData, 'ph'), '#007bff', 'rgba(0, 123, 255, 0.1)');
-        charts.suhu = createChart('suhuChart', 'Suhu (°C)', getDataArray(sensorData, 'suhu'), '#28a745', 'rgba(40, 167, 69, 0.1)');
-        charts.kekeruhan = createChart('kekeruhanChart', 'Kekeruhan (NTU)', getDataArray(sensorData, 'kekeruhan'), '#ffc107', 'rgba(255, 193, 7, 0.1)');
-    }
-
- 
-
-    function updateCards(latestData) {
-        const params = ['ph', 'suhu', 'kekeruhan'];
-
-        // Hanya update jika data quality tersedia dan valid
-if ('quality' in latestData && latestData.quality !== null) {
-    document.getElementById('quality-value').textContent = latestData.quality;
-    latestQuality = latestData.quality; // simpan untuk backup
-} else if (latestQuality !== null) {
-    // fallback pakai data sebelumnya
-    document.getElementById('quality-value').textContent = latestQuality;
-}
-
-
-        params.forEach(param => {
-            const value = latestData[param] !== undefined ? latestData[param] : "-";
-            document.getElementById(`${param}-value`).textContent = value;
-
-            const element = document.getElementById(`card-${param}`);
-            element.classList.remove('border-primary', 'border-success', 'border-warning', 'border-danger');
-
-            let isDanger = false;
-            if (param === 'ph') isDanger = latestData.ph < 7.5 || latestData.ph > 8.5;
-            if (param === 'suhu') isDanger = latestData.suhu < 26 || latestData.suhu > 34;
-            if (param === 'kekeruhan') isDanger = latestData.kekeruhan < 5 || latestData.kekeruhan > 43;
-
-            element.classList.add(isDanger ? 'border-danger' : 'border-success');
-        });
-    }
-
-
-    function updateTips(latestData) {
-    let issues = [];
-    let tipsTitle = "✅ Semua parameter dalam kondisi aman!";
-    let tipsContent = "Pastikan Anda tetap memantau kondisi air secara berkala.";
-    let borderClass = "border-info";
-
-    const conditions = {
-        "pH terlalu rendah. Tambahkan kapur dolomit.": latestData.ph < 7.5,
-        "pH terlalu tinggi. Lakukan penggantian air bertahap.": latestData.ph > 8.5,
-        "Suhu terlalu tinggi. Tambahkan aerasi dan hindari pakan berlebih.": latestData.suhu > 34,
-        "Suhu terlalu rendah. Gunakan pemanas air.": latestData.suhu < 26,
-        "Kekeruhan tinggi. Periksa sisa pakan dan kurangi kepadatan tebar.": latestData.kekeruhan > 43
-    };
-
-    for (const [msg, condition] of Object.entries(conditions)) {
-        if (condition) issues.push(msg);
-    }
-
-    // Menentukan status kualitas air
-    let qualityText = "";
-    let qualityTips = [];
-    let currentQuality = latestData.quality;
-
-    if (currentQuality !== undefined && currentQuality !== null) {
-    if (currentQuality >= 70) {
-        qualityText = "🌊 Kualitas air saat ini **baik**. Lanjutkan perawatan seperti biasa.";
-    } else if (currentQuality >= 50) {
-        qualityText = "⚠️ Kualitas air saat ini **cukup**. Perlu perhatian lebih.";
-        qualityTips.push("Periksa warna air secara visual — hindari warna terlalu gelap atau terlalu hijau pekat.");
-        qualityTips.push("Kurangi pemberian pakan jika air terlihat kotor atau berbau.");
-        qualityTips.push("Tambahkan air bersih secara bertahap, terutama saat cuaca panas.");
-    } else {
-        qualityText = "🚨 Kualitas air saat ini **kurang baik**. Perlu tindakan cepat!";
-        qualityTips.push("Kuras sebagian air tambak dan isi dengan air baru dari sumber bersih.");
-        qualityTips.push("Periksa bau air — jika amis busuk, segera lakukan penggantian air bertahap.");
-        qualityTips.push("Jika tersedia, tebarkan probiotik atau gunakan bahan alami seperti daun ketapang untuk menetralisir kondisi.");
-    }
-
-    // Tambahan: notifikasi tren perubahan
-    if (latestQuality !== null && currentQuality !== latestQuality) {
-        const diff = currentQuality - latestQuality;
-        const trend = diff > 0 ? "meningkat" : "menurun";
-        qualityText += ` Kualitas air ${trend} dari sebelumnya (${latestQuality} → ${currentQuality}).`;
-    }
-
-    latestQuality = currentQuality;
-    }
-
-
-    // Update judul dan konten tips
-    if (issues.length > 0) {
-        tipsTitle = `⚠️ ${issues.length} parameter tidak normal!`;
-        tipsContent = issues.join(" ");
-        borderClass = "border-danger";
-    }
-
-    // Render ke HTML
-    document.getElementById("tips-title").textContent = tipsTitle;
-    document.getElementById("tips-content").textContent = tipsContent;
-    document.getElementById("tips-card").className = `card shadow-sm ${borderClass} rounded-4`;
-
-    // Tampilkan status kualitas air
-    const qualityStatus = document.getElementById("quality-status");
-    qualityStatus.innerHTML = qualityText;
-
-    // Tampilkan tips tambahan jika kualitas air kurang baik
-    const qualityTipsList = document.getElementById("quality-tips");
-    qualityTipsList.innerHTML = ""; // kosongkan dulu
-    qualityTips.forEach(tip => {
-        const li = document.createElement("li");
-        li.textContent = tip;
-        qualityTipsList.appendChild(li);
-    });
-    }
-
-
-    function checkWaterQuality() {
-        $.ajax({
-            url: "{{ url('/dashboard/check-water') }}",
-            type: "GET",
-            dataType: "json",
-            success: function(response) {
-                let alertContainer = $("#alertContainer");
-                alertContainer.empty();
-
-                if (response.status === "warning") {
-                    response.messages.forEach(msg => {
-                        alertContainer.append(`
-                            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-                                ${msg}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        `);
-                    });
-                } else {
-                    alertContainer.append(`
-                        <div class="alert alert-success shadow-sm" role="alert">
-                            ✅ Semua parameter dalam kondisi normal.
-                        </div>
-                    `);
-                }
             },
-            error: function(xhr, status, error) {
-                console.error("Gagal mengambil data:", error);
-            }
-        });
-    }
-
-    function updateCharts() {
-        fetch('/api/sensor-data')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.length) return;
-
-                sensorData = data; // <- UPDATE sensorData agar grafik ikut update
-                const latest = data[0];
-
-                updateCards(latest);
-                updateTips(latest);
-
-                const labels = getLabels(sensorData);
-                charts.ph.data.labels = labels;
-                charts.suhu.data.labels = labels;
-                charts.kekeruhan.data.labels = labels;
-
-                charts.ph.data.datasets[0].data = getDataArray(sensorData, 'ph');
-                charts.suhu.data.datasets[0].data = getDataArray(sensorData, 'suhu');
-                charts.kekeruhan.data.datasets[0].data = getDataArray(sensorData, 'kekeruhan');
-
-                charts.ph.update();
-                charts.suhu.update();
-                charts.kekeruhan.update();
-            })
-            .catch(console.error);
-    }
-
-    function applyThemeToCharts() {
-        const isDark = document.documentElement.classList.contains('dark');
-
-        const textColor = isDark ? '#ffffff' : '#B4B4B8';
-        const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-
-        Object.values(charts).forEach(chart => {
-            if (!chart) return;
-            chart.options.scales.x.ticks.color = textColor;
-            chart.options.scales.y.ticks.color = textColor;
-            chart.options.scales.x.grid.color = gridColor;
-            chart.options.scales.y.grid.color = gridColor;
-            chart.options.plugins.legend.labels.color = textColor;
-            chart.update();
-        });
-    }
-
-    let qualityLog = JSON.parse(localStorage.getItem("qualityLog")) || [];
-const MAX_LOG = 100;
-
-function fetchWaterQuality() {
-    fetch('/check-water')
-        .then(response => response.json())
-        .then(latestData => {
-            if ('quality' in latestData) {
-                const quality = parseFloat(latestData.quality);
-                if (!isNaN(quality)) {
-                    document.getElementById('quality-value').textContent = quality;
-
-                    const status = quality >= 70 ? "Baik" :
-                                   quality >= 50 ? "Cukup" : "Kurang Baik";
-
-                    if (qualityLog.length >= MAX_LOG) qualityLog.shift();
-
-                    qualityLog.push({
-                        waktu: new Date().toLocaleString(),
-                        quality,
-                        status
-                    });
-
-                    localStorage.setItem("qualityLog", JSON.stringify(qualityLog));
-                } else {
-                    document.getElementById('quality-value').textContent = "-";
+            scales: {
+                x: {
+                    grid: { display: false, drawBorder: false }, // Menghilangkan garis grid vertikal
+                    ticks: { font: { size: 11 }, color: '#94a3b8', padding: 8 },
+                    border: { display: false }
+                },
+                y: {
+                    grid: { display: true, color: '#f8fafc', drawBorder: false, borderDash: [4, 4] }, // Garis grid horizontal tipis putus-putus
+                    ticks: { font: { size: 11 }, color: '#94a3b8', padding: 10, maxTicksLimit: 5 },
+                    border: { display: false }
                 }
-            } else {
-                console.warn("Response tidak memiliki field 'quality'", latestData);
-                document.getElementById('quality-value').textContent = "-";
             }
+        },
+        plugins: [crosshairPlugin] // Mendaftarkan custom plugin garis vertikal
+    });
+}
+
+function initCharts() {
+    initScoreGauge();
+    const chronologicalData = [...sensorData].reverse();
+
+    const phData = getDataArray(chronologicalData, 'ph', dummyPH);
+    const suhuData = getDataArray(chronologicalData, 'suhu', dummySuhu);
+    const tdsData = getDataArray(chronologicalData, 'tds', dummyTDS);
+    const kekeruhanData = getDataArray(chronologicalData, 'kekeruhan', dummyKek);
+
+    // Konfigurasi warna garis presisi sesuai dengan screenshot desain
+    charts.ph = createLineChart('phChart', 'pH', phData, '#2563eb', 'rgba(37, 99, 235, 0.1)', 7.3, '#bfdbfe');
+    charts.suhu = createLineChart('suhuChart', 'Suhu (°C)', suhuData, '#10b981', 'rgba(16, 185, 129, 0.1)', 29, '#bbf7d0');
+    charts.tds = createLineChart('tdsChart', 'TDS (ppm)', tdsData, '#06b6d4', 'rgba(6, 182, 212, 0.1)', 400, '#fca5a5');
+    charts.kekeruhan = createLineChart('kekeruhanChart', 'Kekeruhan (NTU)', kekeruhanData, '#8b5cf6', 'rgba(139, 92, 246, 0.1)', 30, '#fca5a5');
+
+    updateChartStats('ph', phData, 'pH');
+    updateChartStats('suhu', suhuData, '°C');
+    updateChartStats('tds', tdsData, 'ppm');
+    updateChartStats('kekeruhan', kekeruhanData, 'NTU');
+
+    if (sensorData.length > 0) {
+        updateSensorBadgesAndValues(sensorData[0]);
+    }
+}
+
+function filterChartTime(range) {
+    activeTimeRange = range;
+    ['btn-today', 'btn-7days', 'btn-30days'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
+    });
+
+    const activeBtn = document.getElementById(`btn-${range}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    let multiplier = range === '7days' ? 7 : range === '30days' ? 30 : 1;
+    let slicedData = [...sensorData].reverse();
+
+    if (range !== 'today' && slicedData.length > 0) {
+        slicedData = slicedData.slice(0, Math.min(slicedData.length, multiplier * 5));
+    }
+
+    const labels = getLabels(slicedData);
+    const phData = getDataArray(slicedData, 'ph', dummyPH);
+    const suhuData = getDataArray(slicedData, 'suhu', dummySuhu);
+    const tdsData = getDataArray(slicedData, 'tds', dummyTDS);
+    const kekeruhanData = getDataArray(slicedData, 'kekeruhan', dummyKek);
+
+    if (charts.ph) {
+        charts.ph.data.labels = labels;
+        charts.ph.data.datasets[0].data = phData;
+        charts.ph.update();
+    }
+    if (charts.suhu) {
+        charts.suhu.data.labels = labels;
+        charts.suhu.data.datasets[0].data = suhuData;
+        charts.suhu.update();
+    }
+    if (charts.tds) {
+        charts.tds.data.labels = labels;
+        charts.tds.data.datasets[0].data = tdsData;
+        charts.tds.update();
+    }
+    if (charts.kekeruhan) {
+        charts.kekeruhan.data.labels = labels;
+        charts.kekeruhan.data.datasets[0].data = kekeruhanData;
+        charts.kekeruhan.update();
+    }
+
+    updateChartStats('ph', phData, 'pH');
+    updateChartStats('suhu', suhuData, '°C');
+    updateChartStats('tds', tdsData, 'ppm');
+    updateChartStats('kekeruhan', kekeruhanData, 'NTU');
+}
+
+function exportChartData() {
+    if (!sensorData || !sensorData.length) {
+        alert('Tidak ada data sensor untuk di-export.');
+        return;
+    }
+
+    let csv = 'Waktu,pH,Suhu (C),TDS (ppm),Kekeruhan (NTU),Kualitas Score\n';
+    sensorData.forEach(row => {
+        csv += `"${row.created_at || ''}",${row.ph || 0},${row.suhu || 0},${row.tds || 0},${row.kekeruhan || 0},${row.kualitas || 0}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sensor_monitoring_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function fetchRealtimeData() {
+    fetch('/get-sensor-data')
+        .then(response => response.ok ? response.json() : Promise.reject('Gagal mengambil data'))
+        .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+                sensorData = data;
+                updateSensorBadgesAndValues(sensorData[0]);
+                filterChartTime(activeTimeRange);
+            }
+            const now = new Date();
+            document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
+            document.getElementById('system-status-dot').className = 'badge bg-success rounded-circle p-1 me-2';
+            document.getElementById('system-status-text').textContent = 'System Online';
         })
-        .catch(error => {
-            console.error('Gagal mengambil data kualitas air:', error);
-            document.getElementById('quality-value').textContent = "-";
+        .catch(() => {
+            const now = new Date();
+            document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
+            document.getElementById('system-status-dot').className = 'badge bg-warning rounded-circle p-1 me-2';
+            document.getElementById('system-status-text').textContent = 'Live Cache';
         });
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    const now = new Date();
+    document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
+    setInterval(fetchRealtimeData, 5000);
+});
 
+// Fitur Auto-Scroll Cuaca Per Jam
+document.addEventListener('DOMContentLoaded', function() {
+    const scrollContainer = document.querySelector('.hourly-scroll-container');
+    if (!scrollContainer) return;
 
-    // Jalankan saat halaman selesai dimuat
-    window.addEventListener('DOMContentLoaded', fetchWaterQuality);
+    let autoScrollTimer;
 
-    document.addEventListener("DOMContentLoaded", () => {
-        initCharts();
-        applyThemeToCharts(); 
-        setInterval(updateCharts, 1000);
-        checkWaterQuality();
-    });
+    function startAutoScroll() {
+        autoScrollTimer = setInterval(() => {
+            const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+            if (scrollContainer.scrollLeft >= maxScroll - 5) {
+                scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
+            } else {
+                scrollContainer.scrollBy({ left: 70, behavior: 'smooth' });
+            }
+        }, 2500);
+    }
+
+    startAutoScroll();
+    scrollContainer.addEventListener('mouseenter', () => clearInterval(autoScrollTimer));
+    scrollContainer.addEventListener('mouseleave', () => startAutoScroll());
+});
 </script>
-
 @endsection

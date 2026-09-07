@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up()
     {
-    Schema::create('sensors', function (Blueprint $table) {
-        $table->id();
-        $table->float('ph');
-        $table->float('suhu');
-        $table->float('salinitas');
-        $table->float('kekeruhan');
-        $table->timestamps();
-    });
+        Schema::create('sensors', function (Blueprint $table) {
+            $table->id();
+            $table->float('ph');
+            $table->float('suhu');
+            $table->float('tds'); // Ganti 'salinitas' menjadi 'tds'
+            $table->float('kekeruhan');
+            $table->float('kualitas')->nullable(); // Ditambahkan untuk menyimpan skor Fuzzy
+            $table->timestamps();
+        });
     }
-
 
     /**
      * Reverse the migrations.

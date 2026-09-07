@@ -39,6 +39,7 @@ class SensorController extends Controller
         $this->applyPhFilter($query, $request);
         $this->applySuhuFilter($query, $request);
         $this->applyKekeruhanFilter($query, $request);
+        $this->applyTdsFilter($query, $request);
 
         $sensorData = $query->orderByDesc('created_at')->get();
 
@@ -53,11 +54,12 @@ class SensorController extends Controller
     private function formatSensorData($data)
     {
         return [
-            'created_at' => Carbon::parse($data->created_at)->format('d M Y, H:i'),
-            'ph' => $data->ph,
-            'suhu' => $data->suhu,
-            'kekeruhan' => $data->kekeruhan,
-            'kualitas' => $data->kualitas,
+            'created_at'          => Carbon::parse($data->created_at)->format('d M Y, H:i'),
+            'ph'                  => $data->ph,
+            'suhu'                => $data->suhu,
+            'tds'                 => $data->tds ?? 0,
+            'kekeruhan'           => $data->kekeruhan,
+            'kualitas'            => $data->kualitas,
             'status_kualitas_air' => $this->determineWaterQualityStatus($data->kualitas)
         ];
     }
@@ -67,15 +69,19 @@ class SensorController extends Controller
      */
     private function applyDateFilter($query, Request $request)
     {
-        if ($request->filled(['start_date', 'end_date'])) {
-            $query->whereBetween('created_at', [
-                Carbon::parse($request->start_date)->startOfDay(),
-                Carbon::parse($request->end_date)->endOfDay(),
-            ]);
-        } elseif ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        } elseif ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+        try {
+            if ($request->filled(['start_date', 'end_date'])) {
+                $query->whereBetween('created_at', [
+                    Carbon::parse($request->start_date)->startOfDay(),
+                    Carbon::parse($request->end_date)->endOfDay(),
+                ]);
+            } elseif ($request->filled('start_date')) {
+                $query->whereDate('created_at', '>=', Carbon::parse($request->start_date));
+            } elseif ($request->filled('end_date')) {
+                $query->whereDate('created_at', '<=', Carbon::parse($request->end_date));
+            }
+        } catch (\Exception $e) {
+            // Log atau abaikan agar tidak fatal error
         }
     }
 
@@ -84,12 +90,11 @@ class SensorController extends Controller
      */
     private function applyPhFilter($query, Request $request)
     {
-        if ($request->filled('ph') && $request->ph !== 'all') {
+        if ($request->filled('ph') && in_array($request->ph, ['acid', 'neutral', 'base'])) {
             match ($request->ph) {
-                'acid' => $query->where('ph', '<', 7.5),
-                'neutral' => $query->whereBetween('ph', [7.5, 8.5]),
-                'base' => $query->where('ph', '>', 8.5),
-                default => null
+                'acid'    => $query->where('ph', '<', 7.0),
+                'neutral' => $query->whereBetween('ph', [7.0, 8.5]),
+                'base'    => $query->where('ph', '>', 8.5),
             };
         }
     }
@@ -101,10 +106,10 @@ class SensorController extends Controller
     {
         if ($request->filled('suhu') && $request->suhu !== 'all') {
             match ($request->suhu) {
-                'cold' => $query->where('suhu', '<', 28),
-                'optimal_suhu' => $query->whereBetween('suhu', [28, 32]),
-                'hot' => $query->where('suhu', '>', 32),
-                default => null
+                'cold'         => $query->where('suhu', '<', 26),
+                'optimal_suhu' => $query->whereBetween('suhu', [26, 32]),
+                'hot'          => $query->where('suhu', '>', 32),
+                default        => null
             };
         }
     }
@@ -116,16 +121,38 @@ class SensorController extends Controller
     {
         if ($request->filled('kekeruhan') && $request->kekeruhan !== 'all') {
             match ($request->kekeruhan) {
-                'clear' => $query->where('kekeruhan', '<', 15),
-                'optimal_kekeruhan' => $query->whereBetween('kekeruhan', [15, 30]),
-                'turbid' => $query->where('kekeruhan', '>', 30),
-                default => null
+                'clear'             => $query->where('kekeruhan', '<', 5),
+                'optimal_kekeruhan' => $query->whereBetween('kekeruhan', [5, 40]),
+                'turbid'            => $query->where('kekeruhan', '>', 40),
+                default             => null
             };
         }
     }
 
-     private function determineWaterQualityStatus($value)
+    /**
+     * Apply TDS (Total Dissolved Solids) filters to the query.
+     */
+    private function applyTdsFilter($query, Request $request)
     {
+        if ($request->filled('tds') && $request->tds !== 'all') {
+            match ($request->tds) {
+                'normal'  => $query->where('tds', '<=', 1000),
+                'medium'  => $query->whereBetween('tds', [1000, 2000]),
+                'high'    => $query->where('tds', '>', 2000),
+                default   => null
+            };
+        }
+    }
+
+    /**
+     * Determine label/status string based on Fuzzy score.
+     */
+    private function determineWaterQualityStatus($value)
+    {
+        if ($value === null) {
+            return 'Belum Dihitung';
+        }
+
         if ($value <= 40) {
             return 'Buruk';
         } elseif ($value >= 60) {
@@ -134,7 +161,4 @@ class SensorController extends Controller
             return 'Sedang';
         }
     }
-
-    
-
 }

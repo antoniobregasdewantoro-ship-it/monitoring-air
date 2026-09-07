@@ -12,7 +12,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $sensorData = Sensor::orderBy('created_at', 'desc')->take(15)->get();
+        // PERBAIKAN: Mengambil hingga 1440 data terakhir agar grafik 7 & 30 hari memiliki rentang tanggal yang cukup
+        $sensorData = Sensor::orderBy('created_at', 'desc')->take(1440)->get();
         $cuaca = $this->getCuacaData();
 
         return view('dashboard', compact('sensorData', 'cuaca'));
@@ -20,7 +21,8 @@ class DashboardController extends Controller
 
     public function getSensorData()
     {
-        $sensorData = Sensor::orderBy('created_at', 'desc')->take(15)->get();
+        // PERBAIKAN: Mengambil data yang sama dengan index() agar pembaruan AJAX tidak memotong rentang grafik
+        $sensorData = Sensor::orderBy('created_at', 'desc')->take(1440)->get();
         $latest = $sensorData->first();
         $quality = null;
 

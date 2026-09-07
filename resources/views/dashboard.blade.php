@@ -318,7 +318,8 @@ body {
                         <div style="font-size: 0.65rem; color: #417280;">Kelembaban</div>
                     </div>
                     <div class="col-4 px-1 weather-border-x d-flex align-items-center justify-content-center">
-                        <div class="fw-bold" style="font-size: 0.9rem; color: #ef4444;">{{ $cuaca['waktu'] }}</div>
+                        <div id="weather-time" class="fw-bold" style="font-size: 0.9rem; color: #ef4444;">
+                            {{ $cuaca['waktu'] }}</div>
                     </div>
                     <div class="col-4 px-1">
                         <div class="fw-bold" style="font-size: 1.05rem; color: #0c2d2a;">{{ $cuaca['angin'] }}</div>
@@ -467,7 +468,7 @@ body {
         </div>
     </div>
 
-    <!-- ROW 3: MONITORING DATA GRAFIK (SESUAI PRESISI GAMBAR) -->
+    <!-- ROW 3: MONITORING DATA GRAFIK -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold m-0 text-dark" style="font-size: 1.3rem;">Monitoring Data</h4>
         <div class="d-flex align-items-center gap-2">
@@ -619,104 +620,99 @@ let charts = {
 };
 let scoreChart = null;
 
-// Fallback dummy data jika DB kosong / cuma 1 baris agar desain grafik tetap ter-render rapi
-const dummyLabels = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-const dummyPH = [6.9, 7.0, 7.3, 7.2, 7.4, 7.5, 7.3, 7.2, 7.4, 7.0, 7.2, 7.3];
-const dummySuhu = [26.8, 27.2, 27.8, 28.5, 29.2, 29.8, 30.1, 30.5, 30.0, 29.2, 28.8, 28.2];
-const dummyTDS = [210, 215, 220, 225, 230, 235, 245, 255, 250, 245, 240, 235];
-const dummyKek = [8.0, 9.5, 12.0, 14.5, 15.0, 16.0, 18.0, 17.5, 15.0, 13.0, 12.0, 11.0];
+// Fallback dummy data jika DB kosong
+const dummyLabels = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00',
+    '17:00'
+];
+const dummyPH = [7.5, 7.8, 6.2, 8.1, 5.2, 7.4, 6.0, 4.8, 7.5, 7.8, 6.2, 8.1];
+const dummySuhu = [28.5, 29.0, 32.5, 29.2, 35.0, 28.0, 33.0, 36.2, 28.5, 29.0, 32.5, 29.2];
+const dummyTDS = [270, 310, 520, 290, 850, 280, 600, 920, 270, 310, 520, 290];
+const dummyKek = [12.0, 15.0, 28.0, 18.0, 45.0, 10.0, 32.0, 50.0, 12.0, 15.0, 28.0, 18.0];
 
+// Pembulatan jam & menit ke kelipatan 30 menit (:00 / :30)
 function formatTimeLabel(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : d.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (isNaN(d.getTime())) return dateStr;
+
+    const minutes = d.getMinutes();
+    const roundedMinutes = Math.round(minutes / 30) * 30;
+    d.setMinutes(roundedMinutes);
+    d.setSeconds(0);
+
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+
+    return `${hours}:${mins}`;
 }
 
-function getLabels(data) {
-    if (!data || data.length < 2) return dummyLabels;
-    return data.map(d => formatTimeLabel(d.created_at));
-}
-
-function getDataArray(data, key, fallbackData) {
-    if (data && data.length >= 2) {
-        return data.map(d => parseFloat(d[key]) || 0);
-    }
-    return fallbackData; // Gunakan fallback dummy jika data tidak cukup untuk membuat kurva
-}
-
-function calculateGaugeScore(ph, suhu, ntu) {
+function calculateGaugeScore(ph, suhu, tds, ntu) {
     let score = 100;
-    if (ph < 7.5 || ph > 8.5) score -= 25;
-    if (suhu < 28 || suhu > 32) score -= 25;
-    if (ntu > 30) score -= 25;
+    if (ph < 6.5 || ph > 8.5) score -= 25;
+    if (suhu < 26.0 || suhu > 31.0) score -= 25;
+    if (tds > 500) score -= 25;
+    if (ntu > 20.0) score -= 25;
     return Math.max(10, Math.min(100, score));
 }
 
-// Fungsi Update Statistik yang disempurnakan (bisa merender HTML tag di satuan warna)
+// Fungsi Update Statistik
 function updateChartStats(key, arrData, unit = '') {
     if (!arrData || !arrData.length) return;
-    
-    // Filter data numerik yang valid
+
     const validNums = arrData.filter(v => v !== null && !isNaN(v));
     if (!validNums.length) return;
 
-    // Kalkulasi nilai
     const min = Math.min(...validNums).toFixed(1);
     const max = Math.max(...validNums).toFixed(1);
     const avg = (validNums.reduce((a, b) => a + b, 0) / validNums.length).toFixed(1);
 
-    // Pemetaan warna senada berdasarkan parameter (key)
     const colorMap = {
-        'ph': '#2563eb',       // Biru
-        'suhu': '#10b981',     // Hijau
-        'tds': '#06b6d4',      // Cyan
-        'kekeruhan': '#8b5cf6' // Ungu
+        'ph': '#2563eb',
+        'suhu': '#10b981',
+        'tds': '#06b6d4',
+        'kekeruhan': '#8b5cf6'
     };
     const themeColor = colorMap[key] || '#64748b';
 
-    // Format HTML untuk mewarnai teks satuan (unit)
-    const unitHtml = unit ? ` <span style="color: ${themeColor}; font-weight: 600; font-size: 0.75rem;">${unit}</span>` : '';
+    const unitHtml = unit ?
+        ` <span style="color: ${themeColor}; font-weight: 600; font-size: 0.75rem;">${unit}</span>` : '';
 
-    // Ambil elemen DOM
     const minEl = document.getElementById(`${key}-min`);
     const maxEl = document.getElementById(`${key}-max`);
     const avgEl = document.getElementById(`${key}-avg`);
 
-    // Terapkan ke DOM menggunakan innerHTML
     if (minEl) minEl.innerHTML = `${min}${unitHtml}`;
     if (maxEl) maxEl.innerHTML = `${max}${unitHtml}`;
     if (avgEl) avgEl.innerHTML = `${avg}${unitHtml}`;
 }
 
+// UPDATE SESUAI SAMPLING SEEDER (pH 6.5-8.5 Normal, Suhu 26-31 C Normal, TDS <=500 Normal, Kekeruhan <=20 Normal)
 function updateSensorBadgesAndValues(latest) {
     if (!latest) return;
 
     const phVal = parseFloat(latest.ph) || 0;
     document.getElementById('ph-value').textContent = phVal.toFixed(1);
     document.getElementById('mini-ph-val').textContent = phVal.toFixed(1);
-    updateBadgeUI('ph-badge', phVal >= 7.5 && phVal <= 8.5, 'Normal', 'Abnormal');
+    updateBadgeUI('ph-badge', phVal >= 6.5 && phVal <= 8.5, 'Normal', 'Abnormal');
 
     const suhuVal = parseFloat(latest.suhu) || 0;
     document.getElementById('suhu-value').textContent = suhuVal.toFixed(1);
     document.getElementById('mini-suhu-val').textContent = `${suhuVal.toFixed(1)}°`;
-    updateBadgeUI('suhu-badge', suhuVal >= 28 && suhuVal <= 32, 'Normal', 'Ekstrem');
+    updateBadgeUI('suhu-badge', suhuVal >= 26.0 && suhuVal <= 31.0, 'Normal', 'Ekstrem');
 
     const tdsVal = parseFloat(latest.tds) || 0;
     document.getElementById('tds-value').textContent = Math.round(tdsVal);
     document.getElementById('mini-tds-val').textContent = Math.round(tdsVal);
-    updateBadgeUI('tds-badge', tdsVal <= 1000, 'Normal', 'Tinggi');
+    updateBadgeUI('tds-badge', tdsVal <= 500, 'Normal', 'Tinggi');
 
     const ntuVal = parseFloat(latest.kekeruhan) || 0;
     document.getElementById('kekeruhan-value').textContent = ntuVal.toFixed(1);
     document.getElementById('mini-kekeruhan-val').textContent = ntuVal.toFixed(1);
-    updateBadgeUI('kekeruhan-badge', ntuVal <= 30, 'Normal', 'Keruh');
+    updateBadgeUI('kekeruhan-badge', ntuVal <= 20.0, 'Normal', 'Keruh');
 
     const qualityScore = latest.kualitas !== null && latest.kualitas !== undefined ?
         Math.round(parseFloat(latest.kualitas)) :
-        calculateGaugeScore(phVal, suhuVal, ntuVal);
+        calculateGaugeScore(phVal, suhuVal, tdsVal, ntuVal);
 
     document.getElementById('quality-value').textContent = qualityScore;
 
@@ -792,7 +788,6 @@ function initScoreGauge() {
     });
 }
 
-// Plugin kustom untuk menggambar garis putus-putus vertikal (crosshair)
 const crosshairPlugin = {
     id: 'crosshair',
     afterDraw: chart => {
@@ -800,21 +795,22 @@ const crosshairPlugin = {
             const x = chart.tooltip._active[0].element.x;
             const yAxis = chart.scales.y;
             const ctx = chart.ctx;
-            
+
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(x, yAxis.top);
             ctx.lineTo(x, yAxis.bottom);
             ctx.lineWidth = 1.5;
-            ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)'; // Warna abu-abu (slate-300) transparan
-            ctx.setLineDash([4, 4]); // Garis putus-putus
+            ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)';
+            ctx.setLineDash([4, 4]);
             ctx.stroke();
             ctx.restore();
         }
     }
 };
 
-function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold = null, thresholdColor = '#cbd5e1') {
+function createLineChart(id, label, initialLabels, dataPoints, borderColor, bgColor, threshold = null, thresholdColor =
+    '#cbd5e1') {
     const canvas = document.getElementById(id);
     if (!canvas) return null;
     const ctx = canvas.getContext('2d');
@@ -829,11 +825,11 @@ function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold 
         backgroundColor: gradient,
         borderWidth: 2,
         fill: true,
-        tension: 0.4, // Membuat kurva menjadi halus
-        pointRadius: 0, // Sembunyikan titik saat diam
-        pointHoverRadius: 6, // Munculkan titik saat di-hover/disentuh
-        pointHoverBackgroundColor: borderColor, // Isi titik dengan warna utama
-        pointHoverBorderColor: '#ffffff', // Garis pinggir titik warna putih
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: borderColor,
+        pointHoverBorderColor: '#ffffff',
         pointHoverBorderWidth: 2
     }];
 
@@ -850,9 +846,6 @@ function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold 
         });
     }
 
-    const chronologicalData = [...sensorData].reverse();
-
-    // Deteksi satuan berdasarkan nama label
     let unit = '';
     if (label.includes('pH')) unit = 'pH';
     else if (label.includes('Suhu')) unit = '°C';
@@ -862,47 +855,59 @@ function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold 
     return new Chart(ctx, {
         type: 'line',
         data: {
-            labels: getLabels(chronologicalData),
+            labels: initialLabels,
             datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 15, bottom: 5 }
+                padding: {
+                    top: 15,
+                    bottom: 5
+                }
             },
-            // PENTING: Pengaturan interaksi agar responsif di HP (bisa sentuh vertikal di mana saja)
             interaction: {
                 mode: 'index',
-                intersect: false, 
+                intersect: false
             },
             plugins: {
                 legend: {
                     display: false
                 },
-                // Kustomisasi Kotak Hover (Tooltip) Sesuai Gambar
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     titleColor: '#64748b',
-                    titleFont: { size: 12, weight: 'normal', family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+                    titleFont: {
+                        size: 12,
+                        weight: 'normal',
+                        family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                    },
                     bodyColor: borderColor,
-                    bodyFont: { size: 16, weight: 'bold', family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+                    bodyFont: {
+                        size: 16,
+                        weight: 'bold',
+                        family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                    },
                     borderColor: '#e2e8f0',
                     borderWidth: 1.5,
-                    padding: { top: 10, bottom: 10, left: 14, right: 14 },
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 14,
+                        right: 14
+                    },
                     cornerRadius: 8,
-                    displayColors: false, // Sembunyikan ikon kotak warna di dalam tooltip
+                    displayColors: false,
                     callbacks: {
                         title: function(context) {
-                            // Tampilkan Waktu di bagian atas tooltip
-                            return context[0].label; 
+                            return context[0].label;
                         },
                         label: function(context) {
                             if (context.dataset.label === 'Ambang Batas') {
                                 return `Batas: ${context.parsed.y} ${unit}`;
                             }
-                            // Tampilkan Nilai dan Satuan (Misal: 7.2 pH)
                             return `${context.parsed.y} ${unit}`;
                         }
                     }
@@ -910,48 +915,177 @@ function createLineChart(id, label, dataPoints, borderColor, bgColor, threshold 
             },
             scales: {
                 x: {
-                    grid: { display: false, drawBorder: false }, // Menghilangkan garis grid vertikal
-                    ticks: { font: { size: 11 }, color: '#94a3b8', padding: 8 },
-                    border: { display: false }
+                    grid: {
+                        display: false,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        },
+                        color: '#94a3b8',
+                        padding: 8
+                    },
+                    border: {
+                        display: false
+                    }
                 },
                 y: {
-                    grid: { display: true, color: '#f8fafc', drawBorder: false, borderDash: [4, 4] }, // Garis grid horizontal tipis putus-putus
-                    ticks: { font: { size: 11 }, color: '#94a3b8', padding: 10, maxTicksLimit: 5 },
-                    border: { display: false }
+                    grid: {
+                        display: true,
+                        color: '#f8fafc',
+                        drawBorder: false,
+                        borderDash: [4, 4]
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        },
+                        color: '#94a3b8',
+                        padding: 10,
+                        maxTicksLimit: 5
+                    },
+                    border: {
+                        display: false
+                    }
                 }
             }
         },
-        plugins: [crosshairPlugin] // Mendaftarkan custom plugin garis vertikal
+        plugins: [crosshairPlugin]
     });
 }
 
 function initCharts() {
     initScoreGauge();
-    const chronologicalData = [...sensorData].reverse();
 
-    const phData = getDataArray(chronologicalData, 'ph', dummyPH);
-    const suhuData = getDataArray(chronologicalData, 'suhu', dummySuhu);
-    const tdsData = getDataArray(chronologicalData, 'tds', dummyTDS);
-    const kekeruhanData = getDataArray(chronologicalData, 'kekeruhan', dummyKek);
+    // Inisialisasi awal grafik dengan struktur kosongan
+    charts.ph = createLineChart('phChart', 'pH', [], [], '#2563eb', 'rgba(37, 99, 235, 0.1)', 7.5, '#bfdbfe');
+    charts.suhu = createLineChart('suhuChart', 'Suhu (°C)', [], [], '#10b981', 'rgba(16, 185, 129, 0.1)', 30,
+    '#bbf7d0');
+    charts.tds = createLineChart('tdsChart', 'TDS (ppm)', [], [], '#06b6d4', 'rgba(6, 182, 212, 0.1)', 500, '#fca5a5');
+    charts.kekeruhan = createLineChart('kekeruhanChart', 'Kekeruhan (NTU)', [], [], '#8b5cf6',
+        'rgba(139, 92, 246, 0.1)', 20, '#fca5a5');
 
-    // Konfigurasi warna garis presisi sesuai dengan screenshot desain
-    charts.ph = createLineChart('phChart', 'pH', phData, '#2563eb', 'rgba(37, 99, 235, 0.1)', 7.3, '#bfdbfe');
-    charts.suhu = createLineChart('suhuChart', 'Suhu (°C)', suhuData, '#10b981', 'rgba(16, 185, 129, 0.1)', 29, '#bbf7d0');
-    charts.tds = createLineChart('tdsChart', 'TDS (ppm)', tdsData, '#06b6d4', 'rgba(6, 182, 212, 0.1)', 400, '#fca5a5');
-    charts.kekeruhan = createLineChart('kekeruhanChart', 'Kekeruhan (NTU)', kekeruhanData, '#8b5cf6', 'rgba(139, 92, 246, 0.1)', 30, '#fca5a5');
-
-    updateChartStats('ph', phData, 'pH');
-    updateChartStats('suhu', suhuData, '°C');
-    updateChartStats('tds', tdsData, 'ppm');
-    updateChartStats('kekeruhan', kekeruhanData, 'NTU');
+    // Terapkan filter default 'today' secara otomatis saat load
+    filterChartTime(activeTimeRange);
 
     if (sensorData.length > 0) {
         updateSensorBadgesAndValues(sensorData[0]);
     }
 }
 
+// Fungsi pengolah data dari Seeder (1,440 data) sesuai rentang waktu aktif
+function processSensorDataByRange(rawData, range) {
+    if (!rawData || rawData.length === 0) {
+        return {
+            labels: dummyLabels,
+            ph: dummyPH,
+            suhu: dummySuhu,
+            tds: dummyTDS,
+            kekeruhan: dummyKek
+        };
+    }
+
+    // Urutkan data dari yang paling lama ke paling baru untuk kurva grafik
+    let sortedData = [...rawData].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const now = new Date();
+
+    if (range === 'today') {
+        const todayStr = now.toDateString();
+        let todayData = sortedData.filter(item => {
+            if (!item.created_at) return false;
+            return new Date(item.created_at).toDateString() === todayStr;
+        });
+
+        if (todayData.length === 0) todayData = sortedData;
+
+        let grouped = {};
+        todayData.forEach(item => {
+            const timeKey = formatTimeLabel(item.created_at);
+            if (!grouped[timeKey]) {
+                grouped[timeKey] = {
+                    ph: [],
+                    suhu: [],
+                    tds: [],
+                    kekeruhan: []
+                };
+            }
+            grouped[timeKey].ph.push(parseFloat(item.ph) || 0);
+            grouped[timeKey].suhu.push(parseFloat(item.suhu) || 0);
+            grouped[timeKey].tds.push(parseFloat(item.tds) || 0);
+            grouped[timeKey].kekeruhan.push(parseFloat(item.kekeruhan) || 0);
+        });
+
+        let labels = Object.keys(grouped);
+        let ph = labels.map(k => (grouped[k].ph.reduce((a, b) => a + b, 0) / grouped[k].ph.length));
+        let suhu = labels.map(k => (grouped[k].suhu.reduce((a, b) => a + b, 0) / grouped[k].suhu.length));
+        let tds = labels.map(k => (grouped[k].tds.reduce((a, b) => a + b, 0) / grouped[k].tds.length));
+        let kekeruhan = labels.map(k => (grouped[k].kekeruhan.reduce((a, b) => a + b, 0) / grouped[k].kekeruhan
+        .length));
+
+        return {
+            labels,
+            ph,
+            suhu,
+            tds,
+            kekeruhan
+        };
+
+    } else {
+        const daysCount = range === '7days' ? 7 : 30;
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - daysCount);
+
+        let filteredData = sortedData.filter(item => {
+            if (!item.created_at) return false;
+            return new Date(item.created_at) >= limitDate;
+        });
+
+        if (filteredData.length === 0) filteredData = sortedData;
+
+        let grouped = {};
+        filteredData.forEach(item => {
+            const d = new Date(item.created_at);
+            const dateKey = d.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short'
+            });
+
+            if (!grouped[dateKey]) {
+                grouped[dateKey] = {
+                    ph: [],
+                    suhu: [],
+                    tds: [],
+                    kekeruhan: []
+                };
+            }
+            grouped[dateKey].ph.push(parseFloat(item.ph) || 0);
+            grouped[dateKey].suhu.push(parseFloat(item.suhu) || 0);
+            grouped[dateKey].tds.push(parseFloat(item.tds) || 0);
+            grouped[dateKey].kekeruhan.push(parseFloat(item.kekeruhan) || 0);
+        });
+
+        let labels = Object.keys(grouped);
+        let ph = labels.map(k => (grouped[k].ph.reduce((a, b) => a + b, 0) / grouped[k].ph.length));
+        let suhu = labels.map(k => (grouped[k].suhu.reduce((a, b) => a + b, 0) / grouped[k].suhu.length));
+        let tds = labels.map(k => (grouped[k].tds.reduce((a, b) => a + b, 0) / grouped[k].tds.length));
+        let kekeruhan = labels.map(k => (grouped[k].kekeruhan.reduce((a, b) => a + b, 0) / grouped[k].kekeruhan
+        .length));
+
+        return {
+            labels,
+            ph,
+            suhu,
+            tds,
+            kekeruhan
+        };
+    }
+}
+
+// Handler event tombol filter jam/hari
 function filterChartTime(range) {
     activeTimeRange = range;
+
     ['btn-today', 'btn-7days', 'btn-30days'].forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.classList.remove('active');
@@ -960,44 +1094,33 @@ function filterChartTime(range) {
     const activeBtn = document.getElementById(`btn-${range}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    let multiplier = range === '7days' ? 7 : range === '30days' ? 30 : 1;
-    let slicedData = [...sensorData].reverse();
-
-    if (range !== 'today' && slicedData.length > 0) {
-        slicedData = slicedData.slice(0, Math.min(slicedData.length, multiplier * 5));
-    }
-
-    const labels = getLabels(slicedData);
-    const phData = getDataArray(slicedData, 'ph', dummyPH);
-    const suhuData = getDataArray(slicedData, 'suhu', dummySuhu);
-    const tdsData = getDataArray(slicedData, 'tds', dummyTDS);
-    const kekeruhanData = getDataArray(slicedData, 'kekeruhan', dummyKek);
+    const processed = processSensorDataByRange(sensorData, range);
 
     if (charts.ph) {
-        charts.ph.data.labels = labels;
-        charts.ph.data.datasets[0].data = phData;
+        charts.ph.data.labels = processed.labels;
+        charts.ph.data.datasets[0].data = processed.ph;
         charts.ph.update();
     }
     if (charts.suhu) {
-        charts.suhu.data.labels = labels;
-        charts.suhu.data.datasets[0].data = suhuData;
+        charts.suhu.data.labels = processed.labels;
+        charts.suhu.data.datasets[0].data = processed.suhu;
         charts.suhu.update();
     }
     if (charts.tds) {
-        charts.tds.data.labels = labels;
-        charts.tds.data.datasets[0].data = tdsData;
+        charts.tds.data.labels = processed.labels;
+        charts.tds.data.datasets[0].data = processed.tds;
         charts.tds.update();
     }
     if (charts.kekeruhan) {
-        charts.kekeruhan.data.labels = labels;
-        charts.kekeruhan.data.datasets[0].data = kekeruhanData;
+        charts.kekeruhan.data.labels = processed.labels;
+        charts.kekeruhan.data.datasets[0].data = processed.kekeruhan;
         charts.kekeruhan.update();
     }
 
-    updateChartStats('ph', phData, 'pH');
-    updateChartStats('suhu', suhuData, '°C');
-    updateChartStats('tds', tdsData, 'ppm');
-    updateChartStats('kekeruhan', kekeruhanData, 'NTU');
+    updateChartStats('ph', processed.ph, 'pH');
+    updateChartStats('suhu', processed.suhu, '°C');
+    updateChartStats('tds', processed.tds, 'ppm');
+    updateChartStats('kekeruhan', processed.kekeruhan, 'NTU');
 }
 
 function exportChartData() {
@@ -1008,10 +1131,13 @@ function exportChartData() {
 
     let csv = 'Waktu,pH,Suhu (C),TDS (ppm),Kekeruhan (NTU),Kualitas Score\n';
     sensorData.forEach(row => {
-        csv += `"${row.created_at || ''}",${row.ph || 0},${row.suhu || 0},${row.tds || 0},${row.kekeruhan || 0},${row.kualitas || 0}\n`;
+        csv +=
+            `"${row.created_at || ''}",${row.ph || 0},${row.suhu || 0},${row.tds || 0},${row.kekeruhan || 0},${row.kualitas || 0}\n`;
     });
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csv], {
+        type: 'text/csv;charset=utf-8;'
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
@@ -1021,15 +1147,40 @@ function exportChartData() {
     document.body.removeChild(link);
 }
 
+function startLiveWeatherClock() {
+    function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const weatherTimeEl = document.getElementById('weather-time');
+        if (weatherTimeEl) {
+            weatherTimeEl.textContent = `${hours}:${minutes} WIB`;
+        }
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
+}
+
 function fetchRealtimeData() {
     fetch('/get-sensor-data')
         .then(response => response.ok ? response.json() : Promise.reject('Gagal mengambil data'))
         .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-                sensorData = data;
+            const sensors = data.sensors || (Array.isArray(data) ? data : []);
+            const cuaca = data.cuaca || null;
+
+            if (sensors.length > 0) {
+                sensorData = sensors;
                 updateSensorBadgesAndValues(sensorData[0]);
                 filterChartTime(activeTimeRange);
             }
+
+            if (cuaca && cuaca.waktu) {
+                const weatherTimeEl = document.getElementById('weather-time');
+                if (weatherTimeEl) {
+                    weatherTimeEl.textContent = cuaca.waktu;
+                }
+            }
+
             const now = new Date();
             document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
             document.getElementById('system-status-dot').className = 'badge bg-success rounded-circle p-1 me-2';
@@ -1045,12 +1196,32 @@ function fetchRealtimeData() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
+    startLiveWeatherClock();
+
     const now = new Date();
     document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
     setInterval(fetchRealtimeData, 5000);
+
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function() {
+            const selectedStatus = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#table-body tr');
+
+            rows.forEach(row => {
+                const rowStatus = row.getAttribute('data-status');
+
+                if (selectedStatus === 'semua' || rowStatus === selectedStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
 });
 
-// Fitur Auto-Scroll Cuaca Per Jam
+// Auto-scroll Cuaca Per Jam
 document.addEventListener('DOMContentLoaded', function() {
     const scrollContainer = document.querySelector('.hourly-scroll-container');
     if (!scrollContainer) return;
@@ -1061,9 +1232,15 @@ document.addEventListener('DOMContentLoaded', function() {
         autoScrollTimer = setInterval(() => {
             const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
             if (scrollContainer.scrollLeft >= maxScroll - 5) {
-                scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
+                scrollContainer.scrollTo({
+                    left: 0,
+                    behavior: 'smooth'
+                });
             } else {
-                scrollContainer.scrollBy({ left: 70, behavior: 'smooth' });
+                scrollContainer.scrollBy({
+                    left: 70,
+                    behavior: 'smooth'
+                });
             }
         }, 2500);
     }

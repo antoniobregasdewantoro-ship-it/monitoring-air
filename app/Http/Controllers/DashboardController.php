@@ -43,111 +43,111 @@ class DashboardController extends Controller
     }
 
     private function getCuacaData()
-    {
-        // Cek Cache
-        if (Cache::has('bmkg_cuaca_jabon')) {
-            return Cache::get('bmkg_cuaca_jabon');
-        }
-
-        try {
-            // API BMKG Resmi (JSON) Khusus Kecamatan Jabon, Kabupaten Sidoarjo
-            $url = "https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=35.15.05.2001";
-
-            $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
-                'Accept'     => 'application/json'
-            ])->withoutVerifying()->timeout(10)->get($url);
-
-            if ($response->successful()) {
-                $data = $response->json();
-
-                // BMKG JSON mengembalikan array cuaca per 3 jam
-                $cuacaList = [];
-                if (isset($data['data'][0]['cuaca'])) {
-                    foreach ($data['data'][0]['cuaca'] as $group) {
-                        if (is_array($group)) {
-                            foreach ($group as $item) {
-                                $cuacaList[] = $item;
-                            }
-                        } else {
-                            $cuacaList[] = $group;
-                        }
-                    }
-                } elseif (isset($data['data'])) {
-                    $cuacaList = $data['data'];
-                }
-
-                if (!empty($cuacaList)) {
-                    $now = Carbon::now('Asia/Jakarta');
-                    $currentForecast = null;
-                    $hourly = [];
-
-                    foreach ($cuacaList as $item) {
-                        $localTimeStr = $item['local_datetime'] ?? $item['datetime'] ?? null;
-                        if (!$localTimeStr) continue;
-
-                        $dt = Carbon::parse($localTimeStr, 'Asia/Jakarta');
-
-                        $dataPoint = [
-                            'carbon'     => $dt,
-                            'temp'       => (string)($item['t'] ?? '30'),
-                            'weather'    => $item['weather_desc'] ?? 'Cerah Berawan',
-                            'humidity'   => (string)($item['hu'] ?? '75'),
-                            'wind_speed' => (string)round((float)($item['ws'] ?? 10)),
-                            'wind_dir'   => $this->convertWindDir($item['wd'] ?? 'TL'),
-                        ];
-
-                        if ($dt->lte($now)) {
-                            $currentForecast = $dataPoint;
-                        }
-
-                        if ($dt->gte($now->copy()->subHours(2)) && count($hourly) < 5) {
-                            $hourly[] = [
-                                'jam'   => $dt->format('H:i'),
-                                'suhu'  => $dataPoint['temp'] . '°',
-                                'icon'  => $this->getWeatherIconText($dataPoint['weather'], $dt->format('H:i')),
-                                'angin' => $dataPoint['wind_dir'],
-                            ];
-                        }
-                    }
-
-                    if (!$currentForecast && !empty($cuacaList)) {
-                        $first = $cuacaList[0];
-                        $currentForecast = [
-                            'temp'       => (string)($first['t'] ?? '31'),
-                            'weather'    => $first['weather_desc'] ?? 'Cerah Berawan',
-                            'humidity'   => (string)($first['hu'] ?? '78'),
-                            'wind_speed' => (string)round((float)($first['ws'] ?? 12)),
-                            'wind_dir'   => $this->convertWindDir($first['wd'] ?? 'TL'),
-                        ];
-                    }
-
-                    if ($currentForecast) {
-                        $cuacaReal = [
-                            'lokasi'     => 'JABON, SIDOARJO',
-                            'hari'       => $now->translatedFormat('l'),
-                            'waktu'      => $now->format('H:i') . ' WIB',
-                            'suhu'       => $currentForecast['temp'],
-                            'kondisi'    => $currentForecast['weather'],
-                            'icon'       => $this->getWeatherIconText($currentForecast['weather'], $now->format('H:i')),
-                            'kelembaban' => $currentForecast['humidity'],
-                            'angin'      => $currentForecast['wind_speed'] . ' km/j',
-                            'arah_angin' => $currentForecast['wind_dir'],
-                            'hourly'     => $hourly
-                        ];
-
-                        Cache::put('bmkg_cuaca_jabon', $cuacaReal, 1800);
-                        return $cuacaReal;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::error("BMKG API Error: " . $e->getMessage());
-        }
-
-        return $this->getOpenMeteoCuaca();
+{
+    // Cek Cache
+    if (Cache::has('bmkg_cuaca_jabon')) {
+        return Cache::get('bmkg_cuaca_jabon');
     }
 
+    try {
+        // API BMKG Resmi (JSON) Khusus Kecamatan Jabon, Kabupaten Sidoarjo
+        $url = "https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=35.15.05.2001";
+
+        $response = Http::withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+            'Accept'     => 'application/json'
+        ])->withoutVerifying()->timeout(10)->get($url);
+
+        if ($response->successful()) {
+            $data = $response->json();
+
+            // BMKG JSON mengembalikan array cuaca per 3 jam
+            $cuacaList = [];
+            if (isset($data['data'][0]['cuaca'])) {
+                foreach ($data['data'][0]['cuaca'] as $group) {
+                    if (is_array($group)) {
+                        foreach ($group as $item) {
+                            $cuacaList[] = $item;
+                        }
+                    } else {
+                        $cuacaList[] = $group;
+                    }
+                }
+            } elseif (isset($data['data'])) {
+                $cuacaList = $data['data'];
+            }
+
+            if (!empty($cuacaList)) {
+                $now = Carbon::now('Asia/Jakarta');
+                $currentForecast = null;
+                $hourly = [];
+
+                foreach ($cuacaList as $item) {
+                    $localTimeStr = $item['local_datetime'] ?? $item['datetime'] ?? null;
+                    if (!$localTimeStr) continue;
+
+                    $dt = Carbon::parse($localTimeStr, 'Asia/Jakarta');
+
+                    $dataPoint = [
+                        'carbon'     => $dt,
+                        'temp'       => (string)($item['t'] ?? '30'),
+                        'weather'    => $item['weather_desc'] ?? 'Cerah Berawan',
+                        'humidity'   => (string)($item['hu'] ?? '75'),
+                        'wind_speed' => (string)($item['ws'] ?? '10'), // Diubah: Hapus pembulatan agar muncul desimal (misal 7.5)
+                        'wind_dir'   => $this->convertWindDir($item['wd'] ?? 'TL'),
+                    ];
+
+                    if ($dt->lte($now)) {
+                        $currentForecast = $dataPoint;
+                    }
+
+                    if ($dt->gte($now->copy()->subHours(2)) && count($hourly) < 5) {
+                        $hourly[] = [
+                            'jam'   => $dt->format('H:i'),
+                            'suhu'  => $dataPoint['temp'] . '°',
+                            'icon'  => $this->getWeatherIconText($dataPoint['weather'], $dt->format('H:i')),
+                            'angin' => $dataPoint['wind_dir'],
+                        ];
+                    }
+                }
+
+                if (!$currentForecast && !empty($cuacaList)) {
+                    $first = $cuacaList[0];
+                    $currentForecast = [
+                        'temp'       => (string)($first['t'] ?? '31'),
+                        'weather'    => $first['weather_desc'] ?? 'Cerah Berawan',
+                        'humidity'   => (string)($first['hu'] ?? '78'),
+                        'wind_speed' => (string)($first['ws'] ?? '12'), // Diubah: Tanpa round()
+                        'wind_dir'   => $this->convertWindDir($first['wd'] ?? 'TL'),
+                    ];
+                }
+
+                if ($currentForecast) {
+                    $cuacaReal = [
+                        'lokasi'     => 'JABON, SIDOARJO',
+                        'hari'       => $now->translatedFormat('l'),
+                        'waktu'      => $now->format('H:i') . ' WIB',
+                        'suhu'       => $currentForecast['temp'],
+                        'kondisi'    => $currentForecast['weather'],
+                        'icon'       => $this->getWeatherIconText($currentForecast['weather'], $now->format('H:i')),
+                        'kelembaban' => $currentForecast['humidity'],
+                        'angin'      => $currentForecast['wind_speed'] . ' km/j',
+                        'arah_angin' => $currentForecast['wind_dir'],
+                        'hourly'     => $hourly
+                    ];
+
+                    // Diubah: Cache diturunkan dari 1800 detik (30 menit) jadi 300 detik (5 menit)
+                    Cache::put('bmkg_cuaca_jabon', $cuacaReal, 300);
+                    return $cuacaReal;
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        \Log::error("BMKG API Error: " . $e->getMessage());
+    }
+
+    return $this->getOpenMeteoCuaca();
+}
     private function getWeatherIconText($desc, $jam = null)
     {
         $desc = strtolower($desc);
@@ -447,20 +447,31 @@ class DashboardController extends Controller
         return 'fas fa-cloud-sun text-warning';
     }
 
-    private function convertWindDir($code) {
-        $code = strtoupper(trim((string)$code));
-        $map = [
-            'N'  => '↑ U', 
-            'NE' => '↗ TL', 
-            'E'  => '→ T', 
-            'SE' => '↘ TG', 
-            'S'  => '↓ S', 
-            'SW' => '↙ BD', 
-            'W'  => '← B', 
-            'NW' => '↖ BL'
-        ];
-        return $map[$code] ?? '↗ TL';
-    }
+  private function convertWindDir($code) {
+    $code = strtoupper(trim((string)$code));
+    $map = [
+        // Kode Inggris
+        'N'  => '↑ U', 
+        'NE' => '↗ TL', 
+        'E'  => '→ T', 
+        'SE' => '↘ TG', 
+        'S'  => '↓ S', 
+        'SW' => '↙ BD', 
+        'W'  => '← B', 
+        'NW' => '↖ BL',
+        
+        // Kode Indonesia (Respon dari BMKG)
+        'U'  => '↑ U', 
+        'TL' => '↗ TL', 
+        'T'  => '→ T', 
+        'TG' => '↘ TG', 
+        'S'  => '↓ S', 
+        'BD' => '↙ BD', 
+        'B'  => '← B', 
+        'BL' => '↖ BL',
+    ];
+    return $map[$code] ?? '↗ TL';
+}
 
     private function getDefaultCuaca() {
         $now = Carbon::now('Asia/Jakarta');

@@ -9,6 +9,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
+    {{-- Google Fonts Global (Plus Jakarta Sans) --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
     {{-- Theme & Custom CSS --}}
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     <link rel="stylesheet" href="{{ asset('build/assets/app-DqME6eCz.css') }}">
@@ -25,6 +31,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
+    /* Font khusus teks navbar (tanpa merusak ikon Font Awesome) */
+    .navbar,
+    .navbar .nav-link,
+    .navbar-brand {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* Kembalikan font khusus untuk ikon Font Awesome */
+    .navbar i,
+    .navbar .fas,
+    .navbar .far,
+    .navbar .fa-solid {
+        font-family: "Font Awesome 6 Free" !important;
+        font-weight: 900 !important;
+    }
+
     /* Style untuk animasi indikator navbar */
     .nav-indicator {
         position: absolute;
@@ -40,6 +62,74 @@
         position: relative;
         z-index: 2;
         transition: color 0.2s ease;
+    }
+
+    /* Custom Theme Toggle Switch */
+    .custom-theme-toggle {
+        position: relative;
+        display: inline-block;
+        width: 58px;
+        height: 30px;
+        cursor: pointer;
+    }
+
+    .custom-theme-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 1.5px solid rgba(255, 255, 255, 0.4);
+        border-radius: 30px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        padding: 3px;
+    }
+
+    .toggle-thumb {
+        width: 22px;
+        height: 22px;
+        background-color: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Light Mode: Matahari Tampak, Bulan Sembunyi */
+    .toggle-thumb .fa-sun {
+        font-size: 12px;
+        color: #ffb703;
+        display: inline-block;
+    }
+
+    .toggle-thumb .fa-moon {
+        font-size: 11px;
+        color: #1f2937;
+        display: none;
+    }
+
+    /* Dark Mode (Checked): Bergeser Ke Kanan + Ganti Ikon Bulan */
+    .custom-theme-toggle input:checked+.toggle-slider .toggle-thumb {
+        transform: translateX(27px);
+    }
+
+    .custom-theme-toggle input:checked+.toggle-slider .toggle-thumb .fa-sun {
+        display: none;
+    }
+
+    .custom-theme-toggle input:checked+.toggle-slider .toggle-thumb .fa-moon {
+        display: inline-block;
     }
     </style>
 </head>
@@ -86,15 +176,16 @@
                     </a>
                 </div>
 
-                <!-- Theme Switcher (Toggle) -->
-                <div class="d-flex align-items-center"
-                    style="background-color: rgba(255, 255, 255, 0.2); padding: 4px 6px; border-radius: 20px;">
-                    <div class="form-check form-switch m-0 d-flex align-items-center">
-                        <input class="form-check-input shadow-none" type="checkbox" id="themeSwitch"
-                            style="width: 2.5rem; height: 1.2rem; cursor: pointer;">
-                        <i class="fas fa-sun text-warning ms-2" style="font-size: 0.9rem;"></i>
-                    </div>
-                </div>
+                <!-- Theme Switcher (Toggle Custom: Sun / Moon) -->
+                <label class="custom-theme-toggle mb-0" for="themeSwitch" title="Ubah Tema">
+                    <input type="checkbox" id="themeSwitch">
+                    <span class="toggle-slider">
+                        <span class="toggle-thumb">
+                            <i class="fas fa-sun"></i>
+                            <i class="fas fa-moon"></i>
+                        </span>
+                    </span>
+                </label>
             </div>
         </div>
     </nav>

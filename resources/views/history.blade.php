@@ -18,6 +18,40 @@
     --color-red: #EF4444;
 }
 
+/* --- HIRARKI FONT HEADER --- */
+.header-tag {
+    color: var(--color-blue);
+    font-size: 0.825rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.header-title {
+    color: var(--color-dark-text);
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+}
+
+.header-desc {
+    color: var(--color-slate);
+    font-size: 0.95rem;
+    font-weight: 400;
+    line-height: 1.5;
+    margin-bottom: 2px;
+}
+
+.header-subdesc {
+    color: #64748B;
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
 .text-main-dark {
     color: var(--color-dark-text) !important;
 }
@@ -91,20 +125,27 @@
     color: var(--color-purple) !important;
 }
 
-/* Class baru untuk tombol Terapkan Filter */
+/* Tombol Terapkan Filter */
 .btn-filter {
     background-color: var(--color-blue);
     color: var(--color-white);
     border: none;
-    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
 }
 
 .btn-filter:hover {
     background-color: #125296;
     color: var(--color-white);
+    transform: translateY(-1px);
 }
 
-/* Class baru untuk Select Latest First */
+.btn-filter:active {
+    transform: translateY(0);
+}
+
+/* Select Outline */
 .select-outline {
     border: 1.5px solid #30A1CE !important;
 }
@@ -114,7 +155,7 @@
     box-shadow: 0 0 0 0.25rem rgba(48, 161, 206, 0.25) !important;
 }
 
-/* --- STYLING PAGINATION SESUAI DESAIN GAMBAR --- */
+/* Pagination Styling */
 .pagination-custom .page-btn {
     border: 1.5px solid var(--color-light-teal);
     background-color: var(--color-white);
@@ -164,7 +205,7 @@
     border-color: var(--color-dark-teal);
 }
 
-/* --- PENGATURAN KHUSUS EXPORT PDF (PRINT) --- */
+/* Export PDF (Print) */
 @media print {
     body {
         background-color: white !important;
@@ -231,11 +272,13 @@ main {
 
         <!-- Header Section -->
         <div class="row mb-4 align-items-center screen-only">
-            <div class="col-md-6">
-                <h2 class="fw-bold text-main-dark mb-1">Laporan Kualitas Air</h2>
-                <p class="text-slate small mb-0">Pantau dan analisis data kualitas air yang telah direkam oleh sistem.</p>
+            <div class="col-md-7">
+                <span class="header-tag">AQUATOR</span>
+                <h1 class="header-title">Laporan Kualitas Air</h1>
+                <p class="header-desc">Pantau dan analisis data kualitas air yang telah direkam oleh sistem.</p>
+                <p class="header-subdesc mb-0">Menampilkan seluruh data monitoring yang tersimpan</p>
             </div>
-            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+            <div class="col-md-5 text-md-end mt-3 mt-md-0">
                 <div class="dropdown d-inline-block">
                     <button class="btn btn-custom-primary px-4 shadow-sm dropdown-toggle rounded-3" type="button"
                         id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -305,15 +348,17 @@ main {
             <div class="card-body p-4">
                 <div class="row align-items-end">
                     <div class="col-md-3 mb-2">
-                        <label class="form-label small text-slate">Dari Tanggal</label>
+                        <label for="start_date" class="form-label small text-slate fw-semibold mb-2">Dari
+                            Tanggal</label>
                         <input type="date" id="start_date" class="form-control rounded-3 border-light shadow-sm">
                     </div>
                     <div class="col-md-3 mb-2">
-                        <label class="form-label small text-slate">Sampai Tanggal</label>
+                        <label for="end_date" class="form-label small text-slate fw-semibold mb-2">Sampai
+                            Tanggal</label>
                         <input type="date" id="end_date" class="form-control rounded-3 border-light shadow-sm">
                     </div>
                     <div class="col-md-3 mb-2">
-                        <label class="form-label small text-slate">Status</label>
+                        <label for="status_filter" class="form-label small text-slate fw-semibold mb-2">Status</label>
                         <select id="status_filter" class="form-select rounded-3 border-light shadow-sm">
                             <option value="all">Semua</option>
                             <option value="normal">Normal</option>
@@ -322,28 +367,35 @@ main {
                         </select>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <button class="btn btn-filter w-100 rounded-3 shadow-sm" onclick="loadHistoryData()">Terapkan Filter</button>
+                        <button type="button" id="btn-apply-filter" class="btn btn-filter w-100 rounded-3 shadow-sm"
+                            onclick="handleApplyFilter()">
+                            Terapkan Filter
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Tabel Riwayat (Print Container) -->
+        <!-- Tabel Riwayat -->
         <div id="printContainer" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
 
             <!-- Header khusus PDF -->
             <div id="printHeader" class="d-none px-4 pt-4 pb-3">
-                <h2 style="color: #1A6DC4; font-weight: bold; font-family: Arial, sans-serif; margin-bottom: 5px; font-size: 22px;">
+                <h2
+                    style="color: #1A6DC4; font-weight: bold; font-family: Arial, sans-serif; margin-bottom: 5px; font-size: 22px;">
                     AQUATOR — Laporan Kualitas Air</h2>
-                <p style="color: #4A7A78; font-family: Arial, sans-serif; font-size: 13px;" id="printSubtitle">Dicetak: -, Total: - data</p>
+                <p style="color: #4A7A78; font-family: Arial, sans-serif; font-size: 13px;" id="printSubtitle">Dicetak:
+                    -, Total: - data</p>
             </div>
 
-            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center screen-only">
+            <div
+                class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center screen-only">
                 <div>
                     <h5 class="fw-bold text-main-dark mb-0">Data Monitoring</h5>
                     <small class="text-slate" id="tabel_hasil_text">0 hasil</small>
                 </div>
-                <select id="sort_order" class="form-select w-auto rounded-3 shadow-sm text-slate select-outline" onchange="loadHistoryData()">
+                <select id="sort_order" class="form-select w-auto rounded-3 shadow-sm text-slate select-outline"
+                    onchange="loadHistoryData()">
                     <option value="latest">Latest First</option>
                     <option value="oldest">Oldest First</option>
                 </select>
@@ -369,10 +421,12 @@ main {
                 </table>
             </div>
 
-            <!-- Footer Pagination (Tertata Rapi di Kanan) -->
-            <div class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center screen-only">
+            <!-- Footer Pagination -->
+            <div
+                class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center screen-only">
                 <div class="text-slate small">
-                    Menampilkan <span class="fw-bold text-main-dark" id="page-range">0–0</span> dari <span class="fw-bold text-main-dark" id="page-total">0</span> data
+                    Menampilkan <span class="fw-bold text-main-dark" id="page-range">0–0</span> dari <span
+                        class="fw-bold text-main-dark" id="page-total">0</span> data
                 </div>
                 <div class="pagination-custom d-flex align-items-center gap-2 ms-auto" id="pagination-wrapper">
                     <!-- Tombol Pagination di-render via JS -->
@@ -409,39 +463,60 @@ function setDefaultDates() {
 }
 
 function getStatusInfo(kualitas_persen) {
-    if (kualitas_persen >= 75) return {
+    let val = parseFloat(kualitas_persen) || 0;
+    if (val >= 75) return {
         label: 'Normal',
+        key: 'normal',
         color: colors.green,
         class: 'text-val-green'
     };
-    if (kualitas_persen >= 40) return {
+    if (val >= 40) return {
         label: 'Warning',
+        key: 'warning',
         color: colors.yellow,
         class: 'text-warning'
     };
     return {
         label: 'Critical',
+        key: 'critical',
         color: colors.red,
         class: 'text-danger'
     };
 }
 
 function getKualitasBadge(kualitas_persen) {
-    if (kualitas_persen >= 75)
+    let val = parseFloat(kualitas_persen) || 0;
+    if (val >= 75)
         return '<span class="badge badge-soft-success rounded-pill px-3 py-2 fw-bold">Baik</span>';
-    if (kualitas_persen >= 40)
+    if (val >= 40)
         return '<span class="badge badge-soft-warning rounded-pill px-3 py-2 fw-bold">Sedang</span>';
     return '<span class="badge badge-soft-danger rounded-pill px-3 py-2 fw-bold">Buruk</span>';
 }
 
-function loadHistoryData() {
+/* Eksekusi Filter */
+function handleApplyFilter() {
+    let $btn = $("#btn-apply-filter");
+    let originalText = $btn.html();
+
+    $btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Memuat...');
+
+    loadHistoryData(function() {
+        $btn.prop("disabled", false).html(originalText);
+    });
+}
+
+function loadHistoryData(callback) {
+    let startDate = $("#start_date").val();
+    let endDate = $("#end_date").val();
+    let selectedStatus = $("#status_filter").val();
+
     $.ajax({
         url: "{{ route('history.filter') }}",
         type: "GET",
         data: {
-            start_date: $("#start_date").val(),
-            end_date: $("#end_date").val(),
-            status: $("#status_filter").val()
+            start_date: startDate,
+            end_date: endDate,
+            status: selectedStatus
         },
         dataType: "json",
         success: function(response) {
@@ -457,12 +532,26 @@ function loadHistoryData() {
 
             response.forEach(function(data) {
                 let dateObj = new Date(data.created_at);
+
+                // --- 1. FILTER TANGGAL (Pelapis Client-Side) ---
+                let dataDateStr = dateObj.toISOString().slice(0, 10);
+                if (startDate && dataDateStr < startDate) return;
+                if (endDate && dataDateStr > endDate) return;
+
+                // --- 2. FILTER STATUS (Pelapis Client-Side) ---
+                let statusInfo = getStatusInfo(data.kualitas);
+                if (selectedStatus !== 'all' && statusInfo.key !== selectedStatus) {
+                    return; // Lewati jika status tidak cocok dengan pilihan filter
+                }
+
+                // --- 3. DEDUPLIKASI / INTERVAL 30 MENIT ---
                 let roundedDate = new Date(dateObj);
                 let roundedMinutes = Math.round(roundedDate.getMinutes() / 30) * 30;
                 roundedDate.setMinutes(roundedMinutes);
                 roundedDate.setSeconds(0);
 
-                let intervalKey = `${roundedDate.getFullYear()}-${roundedDate.getMonth()}-${roundedDate.getDate()}-${roundedDate.getHours()}-${roundedDate.getMinutes()}`;
+                let intervalKey =
+                    `${roundedDate.getFullYear()}-${roundedDate.getMonth()}-${roundedDate.getDate()}-${roundedDate.getHours()}-${roundedDate.getMinutes()}`;
 
                 if (!seenIntervals.has(intervalKey)) {
                     seenIntervals.add(intervalKey);
@@ -471,22 +560,27 @@ function loadHistoryData() {
                 }
             });
 
-            // Summary
+            // Update Ringkasan Summary
             let totalData = currentFilteredData.length;
-            let sumPh = 0, sumSuhu = 0, sumTds = 0, sumKekeruhan = 0, normalCount = 0;
+            let sumPh = 0,
+                sumSuhu = 0,
+                sumTds = 0,
+                sumKekeruhan = 0,
+                normalCount = 0;
 
             currentFilteredData.forEach(function(d) {
                 sumPh += parseFloat(d.ph) || 0;
                 sumSuhu += parseFloat(d.suhu) || 0;
                 sumTds += d.tds ? parseFloat(d.tds) : 0;
                 sumKekeruhan += parseFloat(d.kekeruhan) || 0;
-                if (d.kualitas >= 75) normalCount++;
+                if (parseFloat(d.kualitas) >= 75) normalCount++;
             });
 
             if (totalData === 0) {
                 $("#summary_total").text("0");
                 $("#summary_ph, #summary_suhu, #summary_tds, #summary_kekeruhan").text("-");
-                $("#summary_kualitas").text("-").removeClass("text-val-green text-warning text-danger").addClass("text-slate");
+                $("#summary_kualitas").text("-").removeClass("text-val-green text-warning text-danger")
+                    .addClass("text-slate");
                 $("#tabel_hasil_text").text("0 hasil");
             } else {
                 $("#summary_total").text(totalData);
@@ -497,12 +591,21 @@ function loadHistoryData() {
                 $("#tabel_hasil_text").text(totalData + " hasil");
 
                 let normalRatio = normalCount / totalData;
-                let kualitasClass = normalRatio >= 0.75 ? "text-val-green" : normalRatio >= 0.40 ? "text-warning" : "text-danger";
-                $("#summary_kualitas").text(normalRatio >= 0.75 ? "Baik" : normalRatio >= 0.40 ? "Sedang" : "Buruk")
-                    .removeClass("text-val-green text-warning text-danger text-slate").addClass(kualitasClass);
+                let kualitasClass = normalRatio >= 0.75 ? "text-val-green" : normalRatio >= 0.40 ?
+                    "text-warning" : "text-danger";
+                $("#summary_kualitas").text(normalRatio >= 0.75 ? "Baik" : normalRatio >= 0.40 ? "Sedang" :
+                        "Buruk")
+                    .removeClass("text-val-green text-warning text-danger text-slate").addClass(
+                        kualitasClass);
             }
 
             renderTablePage(1);
+
+            if (typeof callback === 'function') callback();
+        },
+        error: function(xhr, status, error) {
+            console.error("Error loading history data:", error);
+            if (typeof callback === 'function') callback();
         }
     });
 }
@@ -573,12 +676,10 @@ function renderPaginationControls(totalData, page) {
 
     if (totalPages <= 1) return;
 
-    // Prev Button
     let prevDisabled = page === 1 ? 'disabled' : '';
     let prevOnClick = page > 1 ? `onclick="renderTablePage(${page - 1})"` : '';
     wrapper.append(`<button class="page-btn nav-btn ${prevDisabled}" ${prevOnClick}>&lsaquo;</button>`);
 
-    // Batasi tombol halaman yang tampil (Maksimal 5 angka)
     let startPage = Math.max(1, page - 2);
     let endPage = Math.min(totalPages, startPage + 4);
 
@@ -605,7 +706,6 @@ function renderPaginationControls(totalData, page) {
         wrapper.append(`<button class="page-btn" onclick="renderTablePage(${totalPages})">${totalPages}</button>`);
     }
 
-    // Next Button
     let nextDisabled = page === totalPages ? 'disabled' : '';
     let nextOnClick = page < totalPages ? `onclick="renderTablePage(${page + 1})"` : '';
     wrapper.append(`<button class="page-btn nav-btn ${nextDisabled}" ${nextOnClick}>&rsaquo;</button>`);
@@ -617,7 +717,11 @@ function renderAllRowsForPrint() {
 
     currentFilteredData.forEach(function(data) {
         let dateObj = new Date(data.created_at);
-        let datePart = dateObj.toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
+        let datePart = dateObj.toLocaleDateString("id-ID", {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
         let rDate = data.roundedDate || dateObj;
         let hours = String(rDate.getHours()).padStart(2, '0');
         let mins = String(rDate.getMinutes()).padStart(2, '0');
@@ -657,7 +761,7 @@ function printPDF() {
     let totalData = $("#summary_total").text();
 
     $("#printSubtitle").text(`Dicetak: ${printDate} - Total: ${totalData} data`);
-    
+
     renderAllRowsForPrint();
     window.print();
     renderTablePage(currentPage);
@@ -670,40 +774,98 @@ async function exportTableToExcel() {
     worksheet.mergeCells('A1:H1');
     const titleCell = worksheet.getCell('A1');
     titleCell.value = 'AQUATOR — Laporan Kualitas Air';
-    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1A6DC4' } };
+    titleCell.font = {
+        name: 'Arial',
+        size: 16,
+        bold: true,
+        color: {
+            argb: 'FF1A6DC4'
+        }
+    };
 
     let printDate = new Date().toLocaleString('id-ID', {
-        day: 'numeric', month: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
     }).replace(/\./g, ':');
     const totalData = $("#summary_total").text();
 
     worksheet.mergeCells('A2:H2');
     const subtitleCell = worksheet.getCell('A2');
     subtitleCell.value = `Dicetak: ${printDate} - Total: ${totalData} data`;
-    subtitleCell.font = { name: 'Arial', size: 10, color: { argb: 'FF4A7A78' } };
+    subtitleCell.font = {
+        name: 'Arial',
+        size: 10,
+        color: {
+            argb: 'FF4A7A78'
+        }
+    };
 
     worksheet.addRow([]);
 
     const headerRow = worksheet.getRow(4);
-    headerRow.values = ['Tanggal', 'Waktu', 'pH', 'Suhu (°C)', 'TDS (ppm)', 'Kekeruhan (NTU)', 'Kualitas Air', 'Status'];
-    headerRow.font = { bold: true, color: { argb: 'FF8C8C8C' } };
-    headerRow.border = { bottom: { style: 'thin', color: { argb: 'FF9DD4D1' } } };
+    headerRow.values = ['Tanggal', 'Waktu', 'pH', 'Suhu (°C)', 'TDS (ppm)', 'Kekeruhan (NTU)', 'Kualitas Air',
+        'Status'
+    ];
+    headerRow.font = {
+        bold: true,
+        color: {
+            argb: 'FF8C8C8C'
+        }
+    };
+    headerRow.border = {
+        bottom: {
+            style: 'thin',
+            color: {
+                argb: 'FF9DD4D1'
+            }
+        }
+    };
 
-    worksheet.columns = [
-        { key: "tanggal", width: 15 },
-        { key: "waktu", width: 15 },
-        { key: "ph", width: 10 },
-        { key: "suhu", width: 15 },
-        { key: "tds", width: 15 },
-        { key: "kekeruhan", width: 20 },
-        { key: "kualitas_air", width: 15 },
-        { key: "status", width: 15 }
+    worksheet.columns = [{
+            key: "tanggal",
+            width: 15
+        },
+        {
+            key: "waktu",
+            width: 15
+        },
+        {
+            key: "ph",
+            width: 10
+        },
+        {
+            key: "suhu",
+            width: 15
+        },
+        {
+            key: "tds",
+            width: 15
+        },
+        {
+            key: "kekeruhan",
+            width: 20
+        },
+        {
+            key: "kualitas_air",
+            width: 15
+        },
+        {
+            key: "status",
+            width: 15
+        }
     ];
 
     currentFilteredData.forEach(data => {
         let dateObj = new Date(data.created_at);
-        let datePart = dateObj.toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
+        let datePart = dateObj.toLocaleDateString("id-ID", {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
         let rDate = data.roundedDate || dateObj;
         let hours = String(rDate.getHours()).padStart(2, '0');
         let mins = String(rDate.getMinutes()).padStart(2, '0');
@@ -711,7 +873,8 @@ async function exportTableToExcel() {
 
         let tdsValue = data.tds ? parseFloat(data.tds) : 0;
         let statusInfo = getStatusInfo(data.kualitas);
-        let kualitasText = data.kualitas >= 75 ? "Baik" : data.kualitas >= 40 ? "Sedang" : "Buruk";
+        let kualitasText = parseFloat(data.kualitas) >= 75 ? "Baik" : parseFloat(data.kualitas) >= 40 ?
+            "Sedang" : "Buruk";
 
         worksheet.addRow({
             tanggal: datePart,
@@ -733,6 +896,12 @@ $(document).ready(function() {
     setDefaultDates();
     loadHistoryData();
     setInterval(loadHistoryData, 30000);
+
+    $("#start_date, #end_date, #status_filter").on("keypress", function(e) {
+        if (e.which === 13) {
+            handleApplyFilter();
+        }
+    });
 });
 </script>
 @endsection

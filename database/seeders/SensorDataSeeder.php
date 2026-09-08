@@ -192,4 +192,4 @@ class SensorDataSeeder extends Seeder
 
         return round($numerator / $denominator, 2);
     }
-}
+}   
